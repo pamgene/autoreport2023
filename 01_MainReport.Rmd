@@ -1,0 +1,129 @@
+---
+title: "PamGene Data Analysis Report"
+params:
+  author: "me"
+  date: "January 1st, 1970"
+  qc_cv_factor: NULL
+  signal_heatmap: NULL
+  normalizations: NULL
+  kinase_analysis: NULL
+  score_plot_color: NULL
+  xax_scale: NULL
+  phosphosite_heatmap: NULL
+  datatype: NULL
+  aim: This section should be changed to reflect the aim of this experiment.
+  comparisons: This section should be change to list the comparisons in this experiment.
+author: "`r params$author`"
+date: "`r params$date`"
+always_allow_html: true
+output:
+  word_document:
+    reference_docx: "ref/report_ref.docx"
+    toc: yes
+    fig_caption: true
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(flextable)
+source("R/00_GeneralFunctions.R")
+source("R/01_BasicProcessing.R")
+source("R/02_PhosphositeAnalysis.R")
+source("R/03_KinaseAnalysis.R")
+```
+\pagebreak
+
+# Introduction
+
+The PamGene assays measure kinase activity in cell and tissue lysates by measuring the phosphorylation of peptide representations of kinase targets/ substrates (referred hereafter as phosphosites) that are immobilized on the PamChip® microarrays. The active kinases in the sample lysates will phosphorylate their target on the array. Generic fluorescent labeled antibodies that recognize phosphorylated residues are used to visualize the phosphorylation. There are two types of PamChip® microarrays; one has 196 protein tyrosine kinase (PTK) and the other 144 serine/threonine kinase (STK) phosphosites. The supplement to this report can be found as `02_ReportSupplement.docx`, hereafter referred to as Supplement.
+
+## Study Information
+
+Project aim:
+`r params$aim`
+Comparisons:
+`r params$comparisons`
+
+Notation used: T v C means Test v Control, Ratio of T/C; Values > 0 mean increased phosphorylation or kinase activity in T compared to C; Values < 0 mean lower phosphorylation or kinase activity in T compared to C. 
+We recommend replicates of n=3+ per test condition for cell line experiments and n=6+ per test condition for in vivo models or primary cells. Comparisons with replicates of n<3 per group should be considered as a preliminary or trend analysis rather than biologically conclusive results. 
+
+
+
+# Results
+
+## Basic processing
+```{r basic processing}
+qc_files <- read_qc_dir()
+
+if (nrow(qc_files) > 0) {
+  qc_table <- parse_qc(qc_files, params$qc_cv_factor, params$datatype)
+
+  qc_table <- qc_table %>% mutate(flag_string = case_when(
+                      Overall_Flag == 1 ~ paste0("\"poor\", ![](img/red_10.png)"),
+                      Overall_Flag == 2 ~ paste0("\"fair\", ![](img/orange_10.png)"),
+                      Overall_Flag == 3 ~ paste0("\"good\", ![](img/green_10.png)")
+  ))
+  
+  if (length(levels(qc_table$Assay_Type)) == 2) {
+    ptk_qc_result <- qc_table %>% filter(Assay_Type == "PTK") %>% pull(flag_string)
+    stk_qc_result <- qc_table %>% filter(Assay_Type == "STK") %>% pull(flag_string)
+    qc_result <- paste0("In this study, the PTK QC flag was ", ptk_qc_result, " and the STK QC flag was ", stk_qc_result, ".")
+  } else if (length(levels(qc_table$Assay_Type)) == 1) {
+    assay_type <- qc_table %>% pull(Assay_Type)
+    qc_res <- qc_table %>% pull(flag_string)
+    qc_result <- paste0("In this study, the ", assay_type, " QC flag was ", qc_res, ".")
+  }
+
+}
+
+
+```
+
+As a first data analysis step, the quality of the dataset is assessed based on PamGene’s QC criteria for signal strength, number of peptides and the replicate variation. The data quality can either be “good” (i.e., green flag ![](img/green_10.png),  “fair” (i.e., orange flag,  ![](img/orange_10.png)) or “poor” (i.e., red flag, ![](img/red_10.png)). The quality scores serve to assess the reliability of the data. Further details about the definition of QC flags and how they are applied to the data are provided in Supplement section 2.2.2.
+
+`r if(nrow(qc_files) > 0) qc_result`
+
+\newpage
+
+## Phosphosite Analysis
+
+Next, differentially phosphorylated phosphosites between conditions are identified using T-tests or ANOVA-Dunnett test. The signal per phosphosite is the result of the phosphorylation by one or more kinases. This information is useful to place the Upstream Kinase Analysis (UKA) in context and shows the overall trend and direction of the treatment or condition effect, as well as the effect size. When the peptide-level data is not significant (<8 significant phosphosites per assay type, per comparison), we consider UKA to be a preliminary or trend analysis that needs further exploration, perhaps with increased number of replicates. 
+See also Supplement section 2.3. The table below shows the statistical analysis for each comparison.
+
+```{r phosphosite analysis}
+
+stats_files <- read_phosphosite_dir(datatype = params$datatype)
+if (nrow(stats_files) > 0){
+  stats <- parse_stats_files(stats_files, params$datatype)
+  make_report_table_stats(stats, "Phosphosite Analysis")
+}
+
+```
+
+Corresponding volcano plots can be found in Supplement section 2.3.
+
+\newpage
+
+## Upstream Kinase Analysis
+
+Each kinase phosphorylates multiple phosphosites on the PamChip. To address which kinases are responsible for the phosphorylation differences between conditions, we perform an Upstream Kinase Analysis, explained in Supplement section 2.4. UKA uses sets of phosphosites, which are linked to each kinase to predict differential kinase activity. The main results from UKA, the top 10 kinases above the default threshold (Kinase Score > 1.3) are shown in the Table below. For details refer to Supplement 2.4.
+
+```{r kinase analysis}
+kinase_files <- read_kinase_dir()
+if (nrow(kinase_files) > 0) {
+  kinases <- parse_kinase_files(kinase_files)
+  make_report_table(kinases, "Kinase Analysis")
+}
+
+```
+
+The kinome tree overview, as well as numerical data and score plots can be found in Supplement section 2.4.
+
+
+# Conclusions
+
+Further insights into pathway analysis and networks could be interesting.
+
+Free online tutorials for publicly available pathway analysis tools are provided here: https://pamgene.com/ps12/ 

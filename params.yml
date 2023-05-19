@@ -1,0 +1,12 @@
+author: ''
+date: April 29, 2022
+aim: ''
+comparisons: ''
+normalizations: ~
+qc_cv_factor: ''
+signal_heatmap: 'yes'
+phosphosite_heatmap: ~
+kinase_analysis: []
+score_plot_color: specificity
+xax_scale: 'yes'
+datatype: bionav

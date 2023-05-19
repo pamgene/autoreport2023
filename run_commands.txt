@@ -1,0 +1,2 @@
+docker build -t autoreport .
+docker run -dp 3838:3838 autoreport

@@ -1,0 +1,4 @@
+Level	Flag	Signal	PTK_QC	STK_QC	Tech_cv	Bio_cv
+Good	img/green_25.png	"0-4,000"	> 123	> 90	< 20%	< 30%
+Fair	img/orange_25.png	"0-2,000"	78 - 123	56 - 90	20% - 30%	30% - 40%
+Poor	img/red_25.png	"0-1,000"	< 78	< 56	> 30%	> 40%

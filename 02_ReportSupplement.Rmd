@@ -1,0 +1,371 @@
+---
+title: "PamGene Report Supplement"
+params:
+  author: "me"
+  date: "January 1st, 1970"
+  qc_cv_factor: NULL
+  signal_heatmap: NULL
+  normalizations: NULL
+  kinase_analysis: NULL
+  score_plot_color: NULL
+  xax_scale: NULL
+  phosphosite_heatmap: NULL
+  datatype: NULL
+  aim: This section should be changed to reflect the aim of this experiment.
+  comparisons: This section should be change to list the comparisons in this experiment.
+author: "`r params$author`"
+date: "`r params$date`"
+always_allow_html: true
+output:
+  officedown::rdocx_document:
+    reference_docx: "ref/report_ref.docx"
+    toc: yes
+    fig_caption: true
+    number_sections: true
+bibliography: "ref/Autoreport.bib"
+csl: "ref/nature.csl"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(flextable)
+source("R/00_GeneralFunctions.R")
+source("R/01_BasicProcessing.R")
+source("R/02_PhosphositeAnalysis.R")
+source("R/03_KinaseAnalysis.R")
+
+```
+
+\pagebreak
+# Introduction
+
+This supplement gives a detailed explanation of the methods used in the main study report.
+
+With PamGene's kinase activity profiling platform, the activity of kinases in a wide range of cells and tissues can be measured in real time. We use our proprietary 3D peptide microarray technology (PamChip® and PamStation®) which offers a multiplex method for global kinase activity profiling. The assay is very sensitive, requiring only a small amount of lysate to measure the activity of kinases in various samples including cell lines, xenografts and human tissues. Lysates obtained from a few thousand cells can suffice to obtain a kinome profile of the multiple kinases present in these samples. This is accomplished by incubating the sample lysates across peptide substrates immobilized on the 3D surface of the PamChip® microarray (196 protein tyrosine kinase (PTK) or 144 serine/threonine kinase (STK), hereafter referred to as phosphosites). Kinases present in the lysates will phosphorylate the phosphosites, which are visualized using fluorescently labelled antibodies.
+
+## PamChip Technology and Assay Principle
+
+PamGene's microarray assay for kinase activity profiling is based on measuring phosphorylation of phosphosites by protein kinases. The PamChip® 4 consumable consists of 4 identical arrays, each array containing 144 (STK) or 196 (PTK) phosphosites immobilized on a porous ceramic membrane (Figure 1). These phosphosites are encoded in 13 amino acid long peptides which derived from literature or computational predictions. with the phosphorylation of these phosphosites is then used to predict one or multiple upstream kinases (Protein tyrosine kinases for the PTK PamChip® and Serine threonine kinases for the STK PamChip®). Fluorescently labelled anti-phospho-antibodies are used to detect phosphorylation activity of kinases present in the sample (Figure 1).
+
+During the assay, the sample is pumped through the porous membrane, allowing for shorter assay times. When the solution is underneath the array, images of each array are taken at several exposure times by a camera in the workstation (Figure 1). Images are later used by the BioNavigator® software to calculate signal values for each phosphosite. The data workflow consisting of image quantification, quality control, statistical analysis, visualization and interpretation is performed using the BioNavigator® software.
+
+```{r assay-principle, message=FALSE, fig.align='center', fig.cap='PamGene technology outline and PamChip assay principle.'}
+knitr::include_graphics("./img/AssayPrinciple.png")
+```
+\newpage
+
+# Data Analysis
+
+## Data Analysis Overview
+
+The general workflow for data analysis is shown below (Figure 2), which was used to derive the results described in the Report and this Supplement, with details following.
+
+```{r analysis-workflow, message=FALSE, fig.align='center', fig.cap='Data analysis workflow. Parallelograms indicate in- and outputs. Dashed lines indicate optional outputs. Basic Processing (orange box) refers to Section 2.2 of this supplement. Phosphosite Analysis (green box) refers to Section 2.3. Kinase Analysis (blue box) refers to Section 2.4. The output of Phosphosite Analysis and Kinase Analysis can be used for further biological interpretation (see also Section 2.5).', fig.width=6.3, fig.height=6.3}
+knitr::include_graphics("./img/AnalysisWorkflow.png")
+```
+
+\newpage
+
+## Basic Processing
+
+### Image Analysis and Signal Integration
+
+**Image Analysis**
+
+Image analysis is performed on each image. Once a grid is constructed for the image, various values (quantitation types) are calculated. The main value considered as the “signal” is called the `Median_SigmBg` (median signal minus background). Signal_Saturation (fraction of saturated pixels) values are used to remove saturated spots during signal integration.
+
+**Exposure Time Integration**
+
+Low exposure times are useful to capture high intensity signals, and likewise high exposure times are useful to capture low intensity signals. Therefore, the same image is acquired at multiple exposure times, and then `Median_SigmBg` values are integrated to a single value, called the S100 signal. Since saturated spots (5% saturation) are excluded in the integration, the dynamic range of the measurements is increased (the ratio of the highest and lowest signal that can be measured).
+
+### Quality Control
+
+The quality of the data was assessed using criteria shown in Table 1. The QC results for the data in this study are shown in Table 2.
+
+Three criteria were checked using a flag system is used to indicate a quality level:
+
+* Phosphosite signal strength (i.e., the 99th percentile of S100 AU (arbitrary units). 
+
+* Phosphosite number control (i.e., how many phosphosites passed quality control).
+
+* Sample quality control (i.e., Replicate CV (coefficient of variance); An example of technical replicate is 1 sample lysate on 3+ arrays; An example of biological replicate is 1 sample lysate per array).
+
+```{r ref qc table}
+render_ref_qc_table()
+```
+
+**Number of QC-passed phosphosites (PTK)**
+
+For the PTK Assay there is a kinetic readout, with images obtained every 5 minutes during the assay. The phosphorylation kinetics for each phosphosite (each spot) is analyzed by plotting S100 values versus the Time (cycles, in minutes). Only phosphosites that show kinetics (increase of signal in time) on at least 25 % of the arrays are included in the downstream analysis (kinetic fraction present > 0.25). 
+\newpage
+
+**Number of QC-passed phosphosites (STK)**
+
+Phosphosite QC selection for the STK assay is performed by carrying out a nominal CV estimation. Phosphosites with a CV lower than 50% over all measured arrays are included in the downstream analysis. Values after wash (Cycle 124; for the QC phosphosites) are log2 transformed and values below 0 are removed.
+
+
+```{r qc table}
+qc_files <- read_qc_dir()
+if (nrow(qc_files) > 0) {
+  qc_assay_types <- qc_files %>% pull(Assay_Type)
+  make_qc_table(qc_files, params$qc_cv_factor, params$datatype)
+} else {
+  qc_assay_types <- ""
+}
+```
+
+`r if (length(params$normalizations) == 0) {"\\begin{comment}"}`
+### Normalizations
+`r if (length(params$normalizations) == 0) {"\\end{comment}"}`
+
+`r if (length(params$normalizations) != 1) {"\\begin{comment}"}`
+In this study, the following normalization has been applied:
+`r if (length(params$normalizations) != 1) {"\\end{comment}"}`
+
+
+`r if (length(params$normalizations) != 2) {"\\begin{comment}"}`
+In this study, the following normalizations have been applied:
+`r if (length(params$normalizations) != 2) {"\\end{comment}"}`
+
+`r if (!"vsn" %in% params$normalizations) {"\\begin{comment}"}`
+* Variance Stabilizing Normalization (VSN)
+`r if (!"vsn" %in% params$normalizations) {"\\end{comment}"}`
+`r if (!"combat" %in% params$normalizations) {"\\begin{comment}"}`
+* ComBat Correction
+`r if (!"combat" %in% params$normalizations) {"\\end{comment}"}`
+
+`r if (!"vsn" %in% params$normalizations) {"\\begin{comment}"}`
+**VSN** @huber_variance_2002 In log transformed data, variance increases with decreasing signal mean. This means that a certain log fold change is more significant for high-signal phosphosites (with lower variance) than for low-signal phosphosites (high variance). VSN counteracts this effect by rendering the variance independent of the mean thereby facilitating the discovery of significant phosphosites with low signal intensities. Another advantage is that VSN allows for the comparison of large numbers of samples especially from multiple PamStation runs or human samples. Importantly, VSN normalization has two steps. The first step is an affine transformation which results in a shift of the y-axis to the data mean. The consequence of this is that the data shows the relative difference between samples – compared to the mean of all samples – rather than the absolute difference. For example, for a sample with an overall higher kinase activity compared to the control, VSN normalization results in kinases with both higher and lower activity compared to the data average. Thus the analysis highlights kinases with a higher contribution to the overall higher (or lower) kinase activity trend. The second step of VSN is equivalent to log transformation. 
+`r if (!"vsn" %in% params$normalizations) {"\\end{comment}"}`
+
+`r if (!"combat" %in% params$normalizations) {"\\begin{comment}"}`
+**ComBat correction** [@johnson_adjusting_2007; @chen_removing_2011] is a batch effect correction method. Batch effects are systematic technical effects due to the variabilities in time, place, and materials. These effects can reduce the accuracy of the results, thus they have to be counteracted. ComBat corrects for systematic biases (e.g., differences between PamStation runs, PamChips or replicates). ComBat correction is equivalent to Z-score scaling per batch but the scaling parameters (mean / sd) are estimated using an empirical Bayes approach which effectively reduces the noise associated with applying the correction.
+
+`r if (!"combat" %in% params$normalizations) {"\\end{comment}"}`
+
+`r if (params$signal_heatmap != "yes") {"\\begin{comment}"}`
+### Visual assessment of overall signal
+
+The basic processing steps as described above result in log2-transformed or VSN-normalized values (with or without ComBat) for each peptide (rows) and each array (columns). The heatmap(s) below provide an overview of samples and measurements. This view helps to indicate possible trends and outliers. Signals before normalization are provided separately and signals after normalization are shown below. 
+
+```{r, results='asis'}
+template <- "**Heatmap Overview - %s**"
+
+for (assay_type in qc_assay_types) {
+  cat(sprintf(template, assay_type))
+  cat("  \n")
+  cat("  \n")
+  
+  if ("vsn" %in% params$normalizations & !"combat" %in% params$normalizations){
+    cat("##### The heatmap shows VSN-normalized values of the integrated signal. Each row is a phosphosite and each column is a PamChip array. Rows are sorted by row mean and only include phosphosites which passed the QC.")
+  } else if ("vsn" %in% params$normalizations & "combat" %in% params$normalizations){
+    cat("##### The heatmap shows VSN-ComBat-normalized values of the integrated signal. Each row is a phosphosite and each column is a PamChip array. Rows are sorted by row mean and only include phosphosites which passed the QC.")
+  } else if (!"vsn" %in% params$normalizations & "combat" %in% params$normalizations){
+    cat("##### The heatmap shows Log2-ComBat-normalized values of the integrated signal. Each row is a phosphosite and each column is a PamChip array. Rows are sorted by row mean and only include phosphosites which passed the QC.")
+  } else if (!"vsn" %in% params$normalizations & !"combat" %in% params$normalizations){
+    cat("##### The heatmap shows Log2-values of the integrated signal. Each row is a phosphosite and each column is a PamChip array. Rows are sorted by row mean and only include phosphosites which passed the QC.")
+  }
+  cat("  \n")
+}
+
+```
+
+`r if (params$signal_heatmap != "yes") {"\\end{comment}"}`
+
+
+\newpage
+
+## Phosphosite analysis
+
+`r # volcano_text_printed <- FALSE`
+
+### Differential statistical analysis methods: “Test condition(s)” versus “Control”
+
+To identify significant differences between the conditions at the phosphosite level, the following statistical tests are used: 
+
+```{r stats methods, echo=FALSE}
+stats_files <- read_phosphosite_dir(datatype = params$datatype)
+if (nrow(stats_files) > 0) {
+  assay_types <- stats_files %>% distinct(Assay_Type) %>% pull()
+} else {
+  assay_types <- ""
+}
+```
+
+`r if (!"MTvC" %in% stats_files$Stats) {"\\begin{comment}"}`
+* Multiple Test conditions versus Control (MTvC): To compare 2 or more Test Conditions versus Control. An ANOVA is performed for significant effects anywhere between the Test Conditions (including control). A Dunnett’s post-hoc test is then performed for multiple comparisons to find significant effects between each Test Condition.
+`r if (!"MTvC" %in% stats_files$Stats) {"\\end{comment}"}`
+
+
+`r if (!"TT" %in% stats_files$Stats) {"\\begin{comment}"}`
+* T-test (TT): To compare one Test Condition versus Control, two-sided Student’s T-test (paired or unpaired) are performed.
+`r if (!"TT" %in% stats_files$Stats) {"\\end{comment}"}`
+
+The following plot(s) show the results from the statistical tests:
+
+* Volcano plot, useful for a Test condition effect overview (A volcano plot is used to give an overview of effect size, direction and significance)
+`r if ("heatmap" %in% params$normalizations) {"\\begin{comment}"}`
+* Significant phosphosites (LFC or Scaled heatmaps) – provided separately.
+`r if ("heatmap" %in% params$normalizations) {"\\end{comment}"}`
+
+Results from the above tests are provided in Excel-readable format.
+
+`r if (!"MTvC" %in% stats_files$Stats) {"\\begin{comment}"}`
+
+### MTvC Results
+
+`r if (!"MTvC" %in% stats_files$Stats) {"\\end{comment}"}`
+
+`r # if (volcano_text_printed == TRUE) {"\\begin{comment}"}`
+
+The volcano plot visualizes the the effect size (x-axis, LFC or delta) versus significance (y-axis, -log10(p value)) of the test. Red spots are phosphosites that show significant difference compared to control (p<0.05, i.e. -log10(p)>1.3).
+
+`r # if (volcano_text_printed == TRUE) {"\\end{comment}"}`
+
+`r # volcano_text_printed <- TRUE`
+
+`r if (!"MTvC" %in% stats_files$Stats) {"\\begin{comment}"}`
+```{r mtvcvolcanos, fig.cap = paste("MTvC Volcano Plots", if(nrow(stats_files) > 0) {stats_files %>% filter(Stats == "MTvC") %>% pull(Group)}), dpi=150, fig.height=3 * length(assay_types)}
+# stats_files <- read_phosphosite_dir()
+if(nrow(stats_files) > 0) {
+  if ("MTvC" %in% stats_files$Stats) {
+    plot_list <- make_volcano_plots_mtvc(stats_files, datatype = params$datatype)
+    for (i in seq_along(plot_list)) {
+      print(plot_list[[i]])
+    }
+  }
+}
+
+
+```
+
+```{r mtvcheatmaps, fig.cap = paste("MTvC Significant Peptide Heatmaps", if(nrow(stats_files) > 0) {stats_files %>% filter(Stats == "MTvC") %>% pull(Group)}), dpi=150, fig.height=6, fig.width = 3 * length(assay_types)}
+if (nrow(stats_files) > 0) {
+  if ("MTvC" %in% stats_files$Stats) {
+    if ("heatmap" %in% params$`phosphosite_heatmap`) {
+      heatmaps <- make_heatmaps_mtvc(stats_files, datatype = params$datatype)
+    }
+    # heatmaps are not printed in the report anymore - they are provided separately
+    # if ("heatmap" %in% params$`phosphosite_heatmap`) {
+    #   for (i in seq_along(heatmaps)) {
+    #       print(heatmaps[[i]])
+    #     }
+    #   }
+  }
+}
+
+```
+`r if (!"MTvC" %in% stats_files$Stats) {"\\end{comment}"}`
+
+
+
+`r if (!"TT" %in% stats_files$Stats) {"\\begin{comment}"}`
+\newpage
+### T-Test Results
+
+`r if (!"TT" %in% stats_files$Stats) {"\\end{comment}"}`
+
+`r # if (volcano_text_printed == TRUE) {"\\begin{comment}"}`
+
+The volcano plot visualizes the result of the tests by plotting -– for each test -– the effect size (x-axis, LFC or delta) versus significance (y-axis, -log10(p value)) of the test. Red spots are phosphosites that show significant difference compared to control (p<0.05).
+
+`r # if (volcano_text_printed == TRUE) {"\\end{comment}"}`
+
+`r # volcano_text_printed <- TRUE`
+
+`r if (!"TT" %in% stats_files$Stats) {"\\begin{comment}"}`
+
+```{r ttvolcanos, fig.cap = paste("T-Test Volcano Plots", if (nrow(stats_files) > 0) {stats_files %>% filter(Stats == "TT") %>% pull(Comparison)}), dpi=150, fig.width=2.5 * length(assay_types), fig.height=3}
+# stats_files <- read_phosphosite_dir()
+if (nrow(stats_files) > 0) {
+  if ("TT" %in% stats_files$Stats) {
+    plot_list <- make_volcano_plots_tt(stats_files, datatype = params$datatype)
+    for (i in seq_along(plot_list)) {
+      print(plot_list[[i]])
+      
+    }
+  }
+}
+
+```
+
+```{r ttheatmaps, fig.cap = paste("T-Test Significant Peptide Heatmaps", if (nrow(stats_files) > 0) {stats_files %>% filter(Stats == "TT") %>% pull(Comparison)}), dpi = 150, fig.width = 6, fig.height = 7}
+if (nrow(stats_files) > 0) {
+  if ("TT" %in% stats_files$Stats) {
+    if ("heatmap" %in% params$`phosphosite_heatmap`) {
+      heatmaps <- make_heatmaps_tt(stats_files, datatype = params$datatype)
+    }
+    # heatmaps are not printed in the report anymore - they are provided separately
+    # if ("heatmap" %in% params$`phosphosite_heatmap`) {
+    #   for (i in seq_along(heatmaps)) {
+    #       print(heatmaps[[i]])
+    #     }
+    #   }
+  }
+}
+
+```
+`r if (!"TT" %in% stats_files$Stats) {"\\end{comment}"}`
+
+\newpage
+
+## Kinase Analysis
+
+### Differential upstream kinase analysis methods: “Test condition(s)” versus “Control”
+
+The **Upstream Kinase Analysis (UKA)** algorithm predicts differential kinase activity in a Test Condition compared to Control. The UKA uses knowledge from publicly available databases of kinase-substrate relationships. Therefore, the predicted kinases  are dependent on the content of these databases. The results from the UKA can be used to generate hypotheses and the selected kinases need to be further validated using different approaches. Whether they make sense in a biological context is dependent on several factors (e.g., the model system used in the experiments) and requires further consideration.
+UKA uses functional class scoring (similar to Gene Set Enrichment Analysis) to determine kinase activity by testing changes of sets of phosphosites.
+
+The UKA returns the following scores:
+* **Kinase statistic**: represents the change in kinase activity, < 0 = inhibition, > 0 = activation.
+* **Specificity score**: represents the specificity of the change in kinase activity. A higher specificity score means a lower chance that the observed effect could have been obtained by a random set of peptides.
+* **Kinase Score (Median Final Score)**: the sum of the significance and the specificity. Kinases are ordered by this quantitation. Kinases with a high Kinase Score have a higher probability of being differentially active between Test Conditions.
+
+The UKA generates the following plots:
+`r if (!"table" %in% params$kinase_analysis) {"\\begin{comment}"}`
+* **Kinase Score Table**, useful to identify the top kinases. The Score Table shows the top kinases (max 20) above the default threshold (Kinase Score >1.3).
+`r if (!"table" %in% params$kinase_analysis) {"\\end{comment}"}`
+`r if ((!"splotf" %in% params$kinase_analysis) || (!"splots" %in% params$kinase_analysis)) {"\\begin{comment}"}`
+* **Kinase Score Plot**, useful to identify the effect size and direction of the top 20 kinases. Plots are colored by specificity score or kinase family. The Score Plots show the top 20 kinases, regardless of the Kinase Scores.
+`r if ((!"splotf" %in% params$kinase_analysis) || (!"splots" %in% params$kinase_analysis)) {"\\end{comment}"}`
+`r if (!"tree" %in% params$kinase_analysis) {"\\begin{comment}"}`
+* **Kinome Tree**, useful to group the kinases into phylogenetic families. The Coral Trees show all kinases above the default threshold (Kinase Score > 1.3). The Coral Trees are generated by: http://phanstiel-lab.med.unc.edu/CORAL/. Additional information and tutorial are available on request.
+`r if (!"tree" %in% params$kinase_analysis) {"\\end{comment}"}`
+
+Results are provided as Excel (txt) files (Data files/UKA_PTK or UKA_STK). Here the column Median Final Score (= Kinase Score) is used for the ranking, thus enabling selection of kinases above the default threshold (Kinase Score > 1.3).
+For more details of this algorithm  refer to: https://pamgene.com/ps12/UKA. 
+
+A general guideline below can be used to infer biological interpretation from the UKA results. PamGene can support and discuss these approaches.
+
+1. Use the UKA tool to give a ranked predicted list of kinases
+2. Select top kinase(s) based on:
+    + Ranking order
+    + Threshold cut-off (subjective; guideline is to use Median Final score > 1.3)
+    + Known biological information
+3. Further validate the selected kinase based on:
+    + Biological context inferred from current knowledgebase and literature
+    + Other platforms and technologies
+  
+More details of this algorithm are available on request. Results are provided as Excel (txt) files. \newpage
+
+### Kinase Analysis Results
+
+```{r kinase files}
+kinase_files <- read_kinase_dir()
+if (nrow(kinase_files) > 0) {
+  assay_types <- kinase_files %>% pull(Assay_Type) %>% unique(.)
+} else {
+  assay_types <- ""
+}
+```
+
+```{r kinasetables, echo=FALSE, results='asis', dpi=150, fig.width=3 * length(assay_types)+.5, fig.height=4}
+if (nrow(kinase_files) > 0) {
+  output_kinase_analysis(kinase_files, kin_params = params$`kinase_analysis`,
+                         color_type=params$`score_plot_color`)
+}
+
+```
+
+# References
