@@ -1,6 +1,6 @@
-# Autoreport2022
+# Autoreport2023
 
-PamGene automated reporting 2022 version.
+Automated reporting.
 
 
 # Deployment
