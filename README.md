@@ -18,7 +18,5 @@ sudo docker stop autoreport
 docker run -d -p 3838:3838 --restart unless-stopped --name autoreport pamgene/autoreport2022
 ```
 
-## TODO
-
-- Better figure captions
-    
+# Maintainer
+Dora Schuller
