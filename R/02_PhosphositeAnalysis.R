@@ -20,17 +20,12 @@ extract_phosphosite_data_tt_tercen <- function(filepath, assay_type) {
   if (length(colnames(df)) == 5) {
     # supergroup
     df <- df %>%
-      rename(Comparison = 1) %>%
-      mutate(variable = case_when(grepl("\\.delta", variable) ~ "LogFC", grepl("\\.p$", variable) ~ "P"),
-             Comparison = as.factor(Comparison)) %>%
-      distinct(Comparison, ID, variable, value) %>%
-      pivot_wider(names_from = variable, values_from = value)
+      rename(Comparison = 1, LogFC = delta, P = p) %>%
+      mutate(Comparison = as.factor(Comparison))
   } else {
     # no supergroup
     df <- df %>%
-      mutate(variable = case_when(grepl("\\.delta", variable) ~ "LogFC", grepl("\\.p$", variable) ~ "P")) %>%
-      distinct(ID, variable, value) %>%
-      pivot_wider(names_from = variable, values_from = value)
+      rename(LogFC = delta, P = p)
   }
   df$Assay_type <- assay_type
   return(df)
@@ -166,7 +161,8 @@ extract_direction_tt <- function(filepath, comparison, assay_type, datatype, p_f
     df <- extract_phosphosite_data_tt_bionav(filepath, p_file, assay_type)
   }
 
-  if (length(colnames(df)) == 4) {
+  if (length(colnames(df)) == 5) {
+    # no supergroup
     if (assay_type == "PTK") {
       df <- df %>%
         drop_na() %>%
@@ -184,7 +180,8 @@ extract_direction_tt <- function(filepath, comparison, assay_type, datatype, p_f
           down_STK = sum((LogFC < 0) & (P < 0.05)),
         )
     }
-  } else if (length(colnames(df)) == 5) {
+  } else if (length(colnames(df)) == 6) {
+    # supergroup
     output <- list()
     for (group in levels(df$Comparison)) {
       comparison_sg <- paste(comparison, group)
