@@ -1,5 +1,5 @@
-APP_VERSION <- "1.3.6"
-APP_DATE <- "03-05-2022"
+APP_VERSION <- "1.4.1"
+APP_DATE <- "20-07-2023"
 
 library(shiny)
 library(sortable)
