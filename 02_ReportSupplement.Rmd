@@ -349,6 +349,7 @@ A general guideline below can be used to infer biological interpretation from th
   
 More details of this algorithm are available on request. Results are provided as Excel (txt) files. \newpage
 
+\newpage
 ### Kinase Analysis Results
 
 ```{r kinase files}

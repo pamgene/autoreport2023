@@ -2,12 +2,11 @@
 .Rhistory
 .RData
 .Ruserdata
-01_MainReport.docx
-02_ReportSupplement.docx
 playground/
-99_Saved Plots/
-output/
-unzipped/
-01_Basic Processing/
-02_Phosphosite Analysis/
-03_Kinase Analysis/
+R/archive/~BROMIUM
+R/~BROMIUM
+img/~BROMIUM
+ref/~BROMIUM
+R/renv/~BROMIUM
+renv/~BROMIUM
+~BROMIUM
