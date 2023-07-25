@@ -7,18 +7,15 @@ For manual updating of the image on the reagentdb:
 
 1. connect to reagentdb
 
-2. go to autoreport2023 folder 
+2. stop running autoreport container and delete image
 ```
-cd home/dschuller/autoreport2023
-```
-3. stop running autoreport container and delete image
-```
+docker ps
 sudo docker stop autoreport
 docker image ls
 docker image rm <IMAGE ID>
 
 ```
-4. After updating the code:
+3. Pull new code from git. Then:
 ```
 docker build -t autoreport
 docker run -dp 5050:5050 --restart unless-stopped autoreport
