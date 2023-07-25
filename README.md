@@ -3,20 +3,27 @@
 Automated reporting.
 
 
-# Deployment
-
-- Push all changes to the repository
-- Make a new release (use semantic versioning so tag and name release with `vx.x.x`
-- Let GitHub Actions build and push the new Docker image
-- Should update automatically on the reagentdb
-
-
 For manual updating of the image on the reagentdb:
 
+1. connect to reagentdb
+
+2. go to autoreport2023 folder 
+```
+cd home/dschuller/autoreport2023
+```
+3. stop running autoreport container and delete image
 ```
 sudo docker stop autoreport
-docker run -d -p 3838:3838 --restart unless-stopped --name autoreport pamgene/autoreport2022
+docker image ls
+docker image rm <IMAGE ID>
+
 ```
+4. After updating the code:
+```
+docker build -t autoreport
+docker run -dp 5050:5050 --restart unless-stopped autoreport
+```
+
 
 # Maintainer
 Dora Schuller
