@@ -157,12 +157,23 @@ extract_phosphosite_data_mtvc_tercen <- function(filepath, assay_type) {
 extract_direction_tt <- function(filepath, comparison, assay_type, datatype, p_file = NULL) {
   if (datatype == "tercen") {
     df <- extract_phosphosite_data_tt_tercen(filepath, assay_type)
+    if (length(colnames(df)) == 5){
+      supergroup_file <- F
+    } else if (length(colnames(df)) == 6){
+      supergroup_file <- T
+    }
   } else if (datatype == "bionav") {
     df <- extract_phosphosite_data_tt_bionav(filepath, p_file, assay_type)
+    if (length(colnames(df)) == 4){
+      supergroup_file <- F
+    } else if (length(colnames(df)) == 5){
+      supergroup_file <- T
+    }
   }
+  
+  
 
-  if (length(colnames(df)) == 5) {
-    # no supergroup
+  if (!supergroup_file) {
     if (assay_type == "PTK") {
       df <- df %>%
         drop_na() %>%
@@ -180,8 +191,7 @@ extract_direction_tt <- function(filepath, comparison, assay_type, datatype, p_f
           down_STK = sum((LogFC < 0) & (P < 0.05)),
         )
     }
-  } else if (length(colnames(df)) == 6) {
-    # supergroup
+  } else if (supergroup_file) {
     output <- list()
     for (group in levels(df$Comparison)) {
       comparison_sg <- paste(comparison, group)
