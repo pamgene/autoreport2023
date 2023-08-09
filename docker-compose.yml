@@ -1,0 +1,7 @@
+services:
+  frontend:
+    container_name: frontend
+    image: docker.io/pamgene/autoreport2023:latest
+    ports:
+      - 5050:5050
+    restart: unless-stopped
