@@ -1,6 +1,6 @@
 # Autoreport2023
 
-Automated reporting.
+Automated reporting. 
 
 
 For manual updating of the image on the reagentdb:
