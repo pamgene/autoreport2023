@@ -11,3 +11,4 @@ R/renv/~BROMIUM
 renv/~BROMIUM
 ~BROMIUM
 .github/workflows/docker-publish_backup.yml
+renv_new.lock
