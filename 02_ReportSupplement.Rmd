@@ -329,7 +329,7 @@ The UKA returns the following scores:
 
 The UKA generates the following plots:
 `r if (!"table" %in% params$kinase_analysis) {"\\begin{comment}"}`
-* **Kinase Score Table**, useful to identify the top kinases. The Score Table shows the top kinases (max 20) above the default threshold (Kinase Score >1.3).
+* **Kinase Score Table**, useful to identify the top kinases. The Score Table shows the top 10 kinases regardless of the Kinase Score threshold.
 `r if (!"table" %in% params$kinase_analysis) {"\\end{comment}"}`
 `r if ((!"splotf" %in% params$kinase_analysis) || (!"splots" %in% params$kinase_analysis)) {"\\begin{comment}"}`
 * **Kinase Score Plot**, useful to identify the effect size and direction of the top 20 kinases. Plots are colored by specificity score or kinase family. The Score Plots show the top 20 kinases, regardless of the Kinase Scores.
