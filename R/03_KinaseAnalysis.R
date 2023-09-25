@@ -412,11 +412,17 @@ crop_coral_tree <- function(file_location, dimension) {
   return(png_name)
 }
 
-make_coral_trees <- function(kinase_files) {
-  # determine range of data
-  range_df <- get_uka_data_range(kinase_files)
-  ks_max <- range_df %>% pull(max_mks) %>% max(.)
-  ks_min <- range_df %>% pull(min_mks) %>% min(.)
+make_coral_trees <- function(kinase_files, coral_ks_thrs, coral_min, coral_max) {
+  if (coral_ks_thrs == "coral_auto"){
+    # determine range of data
+    range_df <- get_uka_data_range(kinase_files)
+    ks_max <- range_df %>% pull(max_mks) %>% max(.)
+    ks_min <- range_df %>% pull(min_mks) %>% min(.)
+  } else if (coral_ks_thrs == "coral_man"){
+    ks_max <- coral_max
+    ks_min <- coral_min
+  }
+  
   # determine first whether study has both PTK and STK
   assay_types <- kinase_files %>%
     select(Assay_Type) %>%
@@ -453,7 +459,7 @@ make_coral_trees <- function(kinase_files) {
 ################ KINASE ANALYSIS OUTPUT #################
 #########################################################
 
-output_kinase_analysis <- function(kinase_files, kin_params, xax_scale) {
+output_kinase_analysis <- function(kinase_files, kin_params, xax_scale, coral_ks_thrs, coral_min, coral_max) {
   temp <- list()
   if ("table" %in% kin_params) {
     tables <- make_kinase_tables(kinase_files)
@@ -467,7 +473,7 @@ output_kinase_analysis <- function(kinase_files, kin_params, xax_scale) {
   }
 
   if ("tree" %in% kin_params) {
-    temp["tree"] <- list(make_coral_trees(kinase_files))
+    temp["tree"] <- list(make_coral_trees(kinase_files, coral_ks_thrs, coral_min, coral_max))
   }
 
   comparisons <- kinase_files %>%

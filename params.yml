@@ -7,6 +7,8 @@ qc_cv_factor: ''
 signal_heatmap: 'yes'
 phosphosite_heatmap: ~
 kinase_analysis: []
-score_plot_color: specificity
 xax_scale: 'yes'
+coral_ks_thr: 'coral_auto'
+coral_min: -3
+coral_max: 3
 datatype: bionav

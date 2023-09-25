@@ -8,6 +8,9 @@ params:
   normalizations: NULL
   kinase_analysis: NULL
   score_plot_color: NULL
+  coral_ks_thrs: NULL
+  coral_min: NULL
+  coral_max: NULL
   xax_scale: NULL
   phosphosite_heatmap: NULL
   datatype: NULL
@@ -365,8 +368,9 @@ if (nrow(kinase_files) > 0) {
 
 ```{r kinasetables, echo=FALSE, results='asis', dpi=150, fig.width=3 * length(assay_types)+.5, fig.height=4}
 if (nrow(kinase_files) > 0) {
-  output_kinase_analysis(kinase_files, kin_params = params$`kinase_analysis`, xax_scale = params$`xax_scale`)
-                         #coral_ks_thrs = params$`coral_ks_thrs`)
+  output_kinase_analysis(kinase_files, kin_params = params$`kinase_analysis`, xax_scale = params$`xax_scale`,
+                         coral_ks_thrs = params$`coral_ks_thrs`, coral_min = params$`coral_min`, 
+                         coral_max = params$`coral_max`)
 }
 
 ```

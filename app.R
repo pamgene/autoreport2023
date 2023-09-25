@@ -29,12 +29,12 @@ ui <- fluidPage(
                 checkboxGroupInput("heatmap", "Significant Peptide Heatmap", choices = c("Yes" = "heatmap")),
                 checkboxGroupInput("kinase_analysis", "Kinase Analysis", 
                                    choices = c("Score Plot - family" = "splotf", "Score Plot - specificity" = "splots", "Score Table" = "table", "Coral Tree" = "tree")),
-                # radioButtons(
-                #   "coral_ks_thrs", "Coral Kinase Statistics thresholds", choices = c("Automatic" = "coral_auto", "Manual" = "coral_man")),
-                # conditionalPanel("input.coral_ks_thrs == 'coral_man'",
-                #                  numericInput("coral_min", "Coral KS min", -3, -10, 10),
-                #                  numericInput("coral_max", "Coral KS max", 3, -10, 10)
-                # ),
+                radioButtons(
+                  "coral_ks_thrs", "Coral Kinase Statistics thresholds", choices = c("Automatic" = "coral_auto", "Manual" = "coral_man")),
+                conditionalPanel("input.coral_ks_thrs == 'coral_man'",
+                                 numericInput("coral_min", "Coral KS min", -5, -30, 30),
+                                 numericInput("coral_max", "Coral KS max", 5, -30, 30)
+                ),
 
                 radioButtons("xax_scale", "Same X axis for all score plots", 
                              choices = c("No" = "no", "Yes" = "yes")),
@@ -98,6 +98,7 @@ server <- function(input, output, session) {
     updateTextInput(session, "qc_cv_factor", value = params_list$`qc_cv_factor`)
     updateCheckboxGroupInput(session, "heatmap", selected = ifelse(is.null(params_list$`phosphosite_heatmap`), character(0), "heatmap"))
     #updateCheckboxGroupInput(session, "kinase_analysis", selected = params_list$`kinase_analysis`)
+    updateRadioButtons(session, 'coral_ks_thrs', selected = param_list$`coral_ks_thrs`)
     updateRadioButtons(session, "datatype", selected = params_list$datatype)
   }
 
@@ -112,6 +113,9 @@ server <- function(input, output, session) {
             "signal_heatmap" = input$`signal_heatmap`,
             "phosphosite_heatmap" = input$heatmap,
             "kinase_analysis" = input$`kinase_analysis`,
+            "coral_ks_thrs" = input$`coral_ks_thrs`,
+            "coral_min" = input$`coral_min`,
+            "coral_max" = input$`coral_max`,
             "xax_scale" = input$`xax_scale`,
             "datatype" = input$datatype
         )
