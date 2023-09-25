@@ -1,6 +1,6 @@
 # Autoreport2023
 
-Automated reporting. 
+Automated reporting.
 
 ## Deployment
 
