@@ -27,11 +27,11 @@ read_uka_file <- function(uka_file, assay_type) {
   return(df)
 }
 
-extract_top_kinases <- function(uka_file, assay_type, comparison, number_kinases) {
+extract_top_kinases <- function(uka_file, assay_type, comparison) {
   uka <- read_uka_file(uka_file)
   uka <- uka %>%
     filter(`Median Final score` > 1.3) %>%
-    slice_head(n = number_kinases)
+    slice_head(n = 10)
   uka <- uka %>% select(`Kinase Name`, `Median Kinase Statistic`)
   down <- uka %>%
     filter(`Median Kinase Statistic` < 0) %>%
@@ -51,7 +51,7 @@ extract_top_kinases <- function(uka_file, assay_type, comparison, number_kinases
   return(df)
 }
 
-extract_kinase_plot_data <- function(kinase_file, assay_type, comparison, kinase_number = 20) {
+extract_kinase_plot_data <- function(kinase_file, assay_type, comparison) {
   df <- read_uka_file(kinase_file)
   df <- df %>%
     select(`Kinase Name`, `Mean Specificity Score`, `Median Kinase Statistic`, `Kinase Family`) %>%
@@ -63,12 +63,12 @@ extract_kinase_plot_data <- function(kinase_file, assay_type, comparison, kinase
   return(df)
 }
 
-extract_kinase_table <- function(kinase_file, assay_type, kinase_number = 20) {
+extract_kinase_table <- function(kinase_file, assay_type) {
   df <- read_uka_file(kinase_file)
   df <- df %>%
     select(`Kinase Name`, `Median Final score`, `Median Kinase Statistic`) %>%
-    filter(`Median Final score` > 1.3) %>%
-    slice_head(n = 20) %>%
+    #filter(`Median Final score` > 1.3) %>%
+    slice_head(n = 10) %>%
     mutate(
       `Median Final score` = round(`Median Final score`, digits = 2),
       `Median Kinase Statistic` = round(`Median Kinase Statistic`, digits = 2)
@@ -103,7 +103,7 @@ get_uka_data_range <- function(kinase_files) {
 #########################################################
 
 
-parse_kinase_files <- function(kinase_files, kinase_number = 10) {
+parse_kinase_files <- function(kinase_files) {
   # determine first whether study has both PTK and STK
   assay_types <- kinase_files %>%
     select(Assay_Type) %>%
@@ -121,15 +121,15 @@ parse_kinase_files <- function(kinase_files, kinase_number = 10) {
       c_rows <- kinase_files %>% filter(Comparison == comparison)
       c_ptk <- c_rows %>%
         filter(Assay_Type == "PTK") %>%
-        do(extract_top_kinases(.$UKA_file, .$Assay_Type, .$Comparison, kinase_number))
+        do(extract_top_kinases(.$UKA_file, .$Assay_Type, .$Comparison))
       c_stk <- c_rows %>%
         filter(Assay_Type == "STK") %>%
-        do(extract_top_kinases(.$UKA_file, .$Assay_Type, .$Comparison, kinase_number))
+        do(extract_top_kinases(.$UKA_file, .$Assay_Type, .$Comparison))
       df <- left_join(c_ptk, c_stk, by = "comparison")
       dfs <- append(dfs, list(df))
     } else if (length(assay_types) == 1) {
       c_rows <- kinase_files %>% filter(Comparison == comparison)
-      df <- c_rows %>% do(extract_top_kinases(.$UKA_file, .$Assay_Type, .$Comparison, kinase_number))
+      df <- c_rows %>% do(extract_top_kinases(.$UKA_file, .$Assay_Type, .$Comparison))
       dfs <- append(dfs, list(df))
     }
   }
@@ -261,7 +261,7 @@ render_kinase_plot <- function(df, range_df, color_type = "specificity", xax_sca
   return(pg)
 }
 
-make_kinase_plots <- function(kinase_files, kinase_number = 20, color_type = "specificity", xax_scale = "yes") {
+make_kinase_plots <- function(kinase_files, color_type = "specificity", xax_scale = "yes") {
   # determine range of data
   range_df <- get_uka_data_range(kinase_files)
   # determine first whether study has both PTK and STK
@@ -280,13 +280,13 @@ make_kinase_plots <- function(kinase_files, kinase_number = 20, color_type = "sp
     if (length(assay_types) == 2) {
       c_ptk <- c_rows %>%
         filter(Assay_Type == "PTK") %>%
-        do(extract_kinase_plot_data(.$UKA_file, .$Assay_Type, .$Comparison, kinase_number))
+        do(extract_kinase_plot_data(.$UKA_file, .$Assay_Type, .$Comparison))
       c_stk <- c_rows %>%
         filter(Assay_Type == "STK") %>%
-        do(extract_kinase_plot_data(.$UKA_file, .$Assay_Type, .$Comparison, kinase_number))
+        do(extract_kinase_plot_data(.$UKA_file, .$Assay_Type, .$Comparison))
       df <- bind_rows(c_ptk, c_stk)
     } else if (length(assay_types) == 1) {
-      df <- c_rows %>% do(extract_kinase_plot_data(.$UKA_file, .$Assay_Type, .$Comparison, kinase_number))
+      df <- c_rows %>% do(extract_kinase_plot_data(.$UKA_file, .$Assay_Type, .$Comparison))
     }
     plot <- render_kinase_plot(df, range_df, color_type, xax_scale)
     save_plot(paste0("99_Saved Plots/", "UKA_Score Plot_", color_type, "_", comparison, ".pdf"), plot, dpi = 300, base_height = 4)
@@ -338,7 +338,7 @@ render_kinase_table <- function(res_table, assay_types, caption) {
   return(ft)
 }
 
-make_kinase_tables <- function(kinase_files, kinase_number = 20) {
+make_kinase_tables <- function(kinase_files) {
   # determine first whether study has both PTK and STK
   assay_types <- kinase_files %>%
     select(Assay_Type) %>%
@@ -355,13 +355,13 @@ make_kinase_tables <- function(kinase_files, kinase_number = 20) {
     if (length(assay_types) == 2) {
       c_ptk <- c_rows %>%
         filter(Assay_Type == "PTK") %>%
-        do(extract_kinase_table(.$UKA_file, .$Assay_Type, kinase_number))
+        do(extract_kinase_table(.$UKA_file, .$Assay_Type))
       c_stk <- c_rows %>%
         filter(Assay_Type == "STK") %>%
-        do(extract_kinase_table(.$UKA_file, .$Assay_Type, kinase_number))
+        do(extract_kinase_table(.$UKA_file, .$Assay_Type))
       df <- left_join(c_ptk, c_stk, by = "Rank")
     } else if (length(assay_types) == 1) {
-      df <- c_rows %>% do(extract_kinase_table(.$UKA_file, .$Assay_Type, kinase_number))
+      df <- c_rows %>% do(extract_kinase_table(.$UKA_file, .$Assay_Type))
     }
     ft <- render_kinase_table(df, assay_types, paste("Kinase Score Table", comparison))
     fts <- append(fts, list(ft))
@@ -412,7 +412,7 @@ crop_coral_tree <- function(file_location, dimension) {
   return(png_name)
 }
 
-make_coral_trees <- function(kinase_files, kinase_number = 20) {
+make_coral_trees <- function(kinase_files) {
   # determine range of data
   range_df <- get_uka_data_range(kinase_files)
   ks_max <- range_df %>% pull(max_mks) %>% max(.)
@@ -453,18 +453,17 @@ make_coral_trees <- function(kinase_files, kinase_number = 20) {
 ################ KINASE ANALYSIS OUTPUT #################
 #########################################################
 
-output_kinase_analysis <- function(kinase_files, kin_params = params$`kinase_analysis`, 
-                                   color_type = params$`score_plot_color`, xax_scale = params$`xax_scale`) {
+output_kinase_analysis <- function(kinase_files, kin_params, xax_scale) {
   temp <- list()
   if ("table" %in% kin_params) {
     tables <- make_kinase_tables(kinase_files)
     temp["table"] <- list(tables)
   }
   if ("splotf" %in% kin_params) {
-    temp["splotf"] <- list(make_kinase_plots(kinase_files, kinase_number = 20, color_type = "family", xax_scale = xax_scale))
+    temp["splotf"] <- list(make_kinase_plots(kinase_files, color_type = "family", xax_scale = xax_scale))
   }
   if ("splots" %in% kin_params) {
-    temp["splots"] <- list(make_kinase_plots(kinase_files, kinase_number = 20, color_type = "specificity", xax_scale = xax_scale))
+    temp["splots"] <- list(make_kinase_plots(kinase_files, color_type = "specificity", xax_scale = xax_scale))
   }
 
   if ("tree" %in% kin_params) {

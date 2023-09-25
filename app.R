@@ -1,5 +1,4 @@
-APP_VERSION <- "1.4.1"
-APP_DATE <- "20-07-2023"
+APP_VERSION <- "1.4.3"
 
 library(shiny)
 library(sortable)
@@ -30,21 +29,13 @@ ui <- fluidPage(
                 checkboxGroupInput("heatmap", "Significant Peptide Heatmap", choices = c("Yes" = "heatmap")),
                 checkboxGroupInput("kinase_analysis", "Kinase Analysis", 
                                    choices = c("Score Plot - family" = "splotf", "Score Plot - specificity" = "splots", "Score Table" = "table", "Coral Tree" = "tree")),
-                
-                # fluidRow(
-                #     tags$b("Kinase Analysis"),
-                #     bucket_list(
-                #         header = NULL,
-                #         add_rank_list(
-                #             text = "Analysis Options",
-                #             labels = list("plot" = "Score Plot", "table" = "Score Table","tree" = "Coral Tree"),
-                #             input_id = "kin_options"
-                #         ),
-                #         add_rank_list(text = "Chosen Analyses", labels = NULL, input_id = "kin_chosen"))
+                # radioButtons(
+                #   "coral_ks_thrs", "Coral Kinase Statistics thresholds", choices = c("Automatic" = "coral_auto", "Manual" = "coral_man")),
+                # conditionalPanel("input.coral_ks_thrs == 'coral_man'",
+                #                  numericInput("coral_min", "Coral KS min", -3, -10, 10),
+                #                  numericInput("coral_max", "Coral KS max", 3, -10, 10)
                 # ),
-                # fluidRow(
-                #   checkboxGroupInput("score_plot_color", "Score Plot Type", choices = c("Specificity" = "specificity", "Family" = "family")),
-                
+
                 radioButtons("xax_scale", "Same X axis for all score plots", 
                              choices = c("No" = "no", "Yes" = "yes")),
                 fluidRow(
@@ -56,6 +47,7 @@ ui <- fluidPage(
                 )
             ),
             mainPanel(
+                br(),
                 h1("Report Files"),
                 radioButtons("datatype", "Report Data Type", choices = c("BioNavigator" = "bionav", "Tercen" = "tercen"), inline = TRUE),
                 fileInput("reportFiles", "Upload all the files for the report separately or as a .zip.", multiple = TRUE),
@@ -70,7 +62,7 @@ ui <- fluidPage(
             )
         ),
         hr(),
-        sprintf("PamGene Automated Report Version %s, %s", APP_VERSION, APP_DATE),
+        sprintf("PamGene Automated Report Version %s", APP_VERSION),
         br(),
         br()
     )
@@ -106,7 +98,6 @@ server <- function(input, output, session) {
     updateTextInput(session, "qc_cv_factor", value = params_list$`qc_cv_factor`)
     updateCheckboxGroupInput(session, "heatmap", selected = ifelse(is.null(params_list$`phosphosite_heatmap`), character(0), "heatmap"))
     #updateCheckboxGroupInput(session, "kinase_analysis", selected = params_list$`kinase_analysis`)
-    #updateCheckboxGroupInput(session, "score_plot_color", selected = params_list$`score_plot_color`)
     updateRadioButtons(session, "datatype", selected = params_list$datatype)
   }
 
@@ -121,7 +112,6 @@ server <- function(input, output, session) {
             "signal_heatmap" = input$`signal_heatmap`,
             "phosphosite_heatmap" = input$heatmap,
             "kinase_analysis" = input$`kinase_analysis`,
-            # "score_plot_color" = input$`score_plot_color`,
             "xax_scale" = input$`xax_scale`,
             "datatype" = input$datatype
         )

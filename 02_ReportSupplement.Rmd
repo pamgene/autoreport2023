@@ -98,6 +98,7 @@ render_ref_qc_table()
 **Number of QC-passed phosphosites (PTK)**
 
 For the PTK Assay there is a kinetic readout, with images obtained every 5 minutes during the assay. The phosphorylation kinetics for each phosphosite (each spot) is analyzed by plotting S100 values versus the Time (cycles, in minutes). Only phosphosites that show kinetics (increase of signal in time) on at least 25 % of the arrays are included in the downstream analysis (kinetic fraction present > 0.25). 
+
 \newpage
 
 **Number of QC-passed phosphosites (STK)**
@@ -364,8 +365,8 @@ if (nrow(kinase_files) > 0) {
 
 ```{r kinasetables, echo=FALSE, results='asis', dpi=150, fig.width=3 * length(assay_types)+.5, fig.height=4}
 if (nrow(kinase_files) > 0) {
-  output_kinase_analysis(kinase_files, kin_params = params$`kinase_analysis`,
-                         color_type=params$`score_plot_color`)
+  output_kinase_analysis(kinase_files, kin_params = params$`kinase_analysis`, xax_scale = params$`xax_scale`)
+                         #coral_ks_thrs = params$`coral_ks_thrs`)
 }
 
 ```
