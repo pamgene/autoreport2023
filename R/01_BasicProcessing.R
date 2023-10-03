@@ -12,7 +12,7 @@ extract_qc <- function(qc_file, assay_type, group_name, datatype = "bionav") {
   } else if (datatype == "tercen") {
     qc_df <- read_delim(qc_file, show_col_types = FALSE)
     qc_df <- clean_tercen_columns(qc_df)
-    colnames(qc_df)[grep("logTransformed|norm", colnames(qc_df))] <- "Value"
+    colnames(qc_df)[grep("logTransformed|identity", colnames(qc_df))] <- "Value"
   }
   
   signal <- round(quantile(2 ^ qc_df$Value, .99, na.rm = TRUE))
