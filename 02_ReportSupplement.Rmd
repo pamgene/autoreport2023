@@ -326,9 +326,9 @@ The UKA algorithm returns the followings:
 
 * **Kinase Statistic**: represents the direction of effect: the change in kinase activity in a Test condition (T) compared to a Control condition (C). < 0 means inhibition, > 0 means activation in T versus C. The Kinase Statistic is the median of the Peptide Statistics of the set of peptides that a kinase can phosphorylate. The Peptide Statistic is the signal-to-noise ratio of peptides between T and C. Thus, the Kinase Statistic represents the log fold change scaled by the noise. 
 
-* **Significance Score**: the significance of kinase activity change is based on a permutation test where the samples are permuted. The Kinase Statistic is recalculated for each permutation. The Significance Score is based on the difference between the Kinase Statistic of the actual sample versus that of the permuted samples. A high Significance Score means a high probability that the kinase is differentially active between Test and Control.
+* **Significance Score**: the significance of the Kinase Statistic is based on a permutation test where the samples are permuted. The Kinase Statistic is recalculated for each permutation. The Significance Score is based on the difference between the Kinase Statistic of the actual sample versus that of the permuted samples. A high Significance Score means a high probability that the kinase is differentially active between Test and Control.
 
-* **Specificity Score**: the specificity of kinase activity change is based on a permutation test, where the peptides are permuted. The Kinase Statistic is recalculated for each permutation.  The Specificity Score is based on the difference between the Kinase Statistic of the actual sample versus that of the permuted samples. A high Specificity Score means a high probability that the observed effect could not have been obtained by a random set of peptides. 
+* **Specificity Score**: the specificity of the Kinase Statistic is based on a permutation test, where the peptides are permuted. The Kinase Statistic is recalculated for each permutation.  The Specificity Score is based on the difference between the Kinase Statistic of the actual sample versus that of the permuted samples. A high Specificity Score means a high probability that the observed effect could not have been obtained by a random set of peptides. 
 
 * **Kinase Score (Median Final Score)**: the sum of the Significance Score and the Specificity Score. Kinases are ordered by this score. 
 
@@ -339,13 +339,12 @@ cat("The UKA algorithm generates the following plots:")
 
 ```{r include="table" %in% params, results='asis'}
 cat("* **Kinase Score Table**, useful to identify the top kinases. 
-The Score Table shows the top 10 kinases regardless of the Kinase Score threshold.")
+The Score Table shows the top 10 kinases regardless of the Kinase Scores.")
 
 ```
 
 ```{r include= ("splotf" %in% params | "splots" %in% params), results='asis'}
-cat("* **Kinase Score Plot**, useful to identify the effect size and direction of the top 20 kinases. 
-Plots are ordered by the Kinase score and colored by Specificity Score or kinase family.")
+cat("* **Kinase Score Plot**, useful to identify the effect size and direction of the top 20 kinases. Plots are colored by Specificity Score or kinase family. When a kinase family is represented by only 1 kinase from the Top 20 list, the bars are coloured grey. The Score Plots show the top 20 kinases, regardless of the Kinase Scores.")
 ```
 
 ```{r include= "tree" %in% params, results='asis'}
