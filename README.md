@@ -14,7 +14,7 @@ The Github Actions workflow builds and pushes the new Docker image on Dockerhub 
 2/2. stop running autoreport container and delete image
 ```
 docker ps
-sudo docker stop autoreport
+docker rm -f <container-id>
 docker image ls
 docker image rm <IMAGE ID>
 

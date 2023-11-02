@@ -91,7 +91,26 @@ read_phosphosite_dir <- function(folder = "02_Phosphosite Analysis/", datatype =
 read_kinase_dir <- function(folder = "03_Kinase Analysis/") {
   # will return df with files for easy processing
   files <- list.files(folder, pattern = ".txt$|.csv$", full.names = TRUE, include.dirs = FALSE)
-
+  
+  # # decide if it is new uka
+  # test <- read_delim(files[1], show_col_types = FALSE) %>% clean_tercen_columns()
+  # # if it is new uka, make the same dataformat as old uka, savelog and read the files again
+  # if (any(grepl("variable", colnames(test)))){
+  #  # get name of Control
+  #   ctrl <- sub(".*vs(.+)\\.csv", "\\1", files[1]) %>% str_trim()
+  #   split_uka <- split(test, test[,1])
+  #   # pivot wider & clean columns
+  #   split_uka_w <- lapply(split_uka, function(x) pivot_wider(x, names_from = variable, values_from = value))
+  #   split_uka_w <- lapply(split_uka_w, function(x) clean_tercen_columns(x))
+  #   # save
+  #   sapply(names(split_uka), 
+  #          function (x) write_csv(split_uka[[x]], paste0(folder, x, " vs ", ctrl, ".csv") )   )
+  #   files <- list.files(folder, pattern = ".txt$|.csv$", full.names = TRUE, include.dirs = FALSE)
+  #   
+  # }
+  
+  
+  
   if (length(files) == 0) {
     warning("No kinase files")
     return(data.frame())
