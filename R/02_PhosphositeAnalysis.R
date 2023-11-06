@@ -17,12 +17,15 @@ source("R/report_theme.R")
 extract_phosphosite_data_tt_tercen <- function(filepath, assay_type) {
   df <- read_delim(filepath, show_col_types = FALSE)
   df <- clean_tercen_columns(df)
-  if (length(colnames(df)) == 5) {
+  if ("UniprotAccession" %in% colnames(df)){
+    df <- df %>% select(-UniprotAccession) %>% distinct()
+  }
+  if (length(colnames(df)) == 4) {
     # supergroup
     df <- df %>%
       rename(Comparison = 1, LogFC = delta, P = p) %>%
       mutate(Comparison = as.factor(Comparison))
-  } else {
+  } else if (length(colnames(df)) == 3) {
     # no supergroup
     df <- df %>%
       rename(LogFC = delta, P = p)
@@ -157,9 +160,9 @@ extract_phosphosite_data_mtvc_tercen <- function(filepath, assay_type) {
 extract_direction_tt <- function(filepath, comparison, assay_type, datatype, p_file = NULL) {
   if (datatype == "tercen") {
     df <- extract_phosphosite_data_tt_tercen(filepath, assay_type)
-    if (length(colnames(df)) == 5){
+    if (length(colnames(df)) == 4){
       supergroup_file <- F
-    } else if (length(colnames(df)) == 6){
+    } else if (length(colnames(df)) == 5){
       supergroup_file <- T
     }
   } else if (datatype == "bionav") {
@@ -241,143 +244,171 @@ extract_direction_mtvc <- function(filepath, assay_type, group, datatype, p_file
   return(output)
 }
 
+
+
+parse_mtvc <- function(stat_files, datatype, assay_types){
+  dfs <- list()
+  mtvc_rows <- stats_files %>% filter(Stats == "MTvC")
+  groups <- stats_files %>%
+    filter(Stats == "MTvC") %>%
+    distinct(Group) %>%
+    pull()
+  if (!is.na(groups)) {
+    for (group in groups) {
+      group_rows <- mtvc_rows %>% filter(Group == group)
+      if (datatype == "bionav") {
+        if (length(assay_types) == 2){
+          mtvc_ptk <- group_rows %>%
+            filter(Assay_Type == "PTK") %>%
+            do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
+          mtvc_stk <- group_rows %>%
+            filter(Assay_Type == "STK") %>%
+            do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
+          df <- left_join(mtvc_ptk, mtvc_stk, by = c("comparison", "stats"))
+        } else if (length(assay_types) == 1){
+          df <- group_rows %>% do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
+        } 
+      } else if (datatype == "tercen") {
+        if (length(assay_types) == 2){
+          mtvc_ptk <- group_rows %>%
+            filter(Assay_Type == "PTK") %>%
+            do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
+          mtvc_stk <- group_rows %>%
+            filter(Assay_Type == "STK") %>%
+            do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
+          df <- left_join(mtvc_ptk, mtvc_stk, by = c("comparison", "stats"))
+        } else if (length(assay_types) == 1){
+          df <- group_rows %>% do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
+        }
+      }
+      dfs <- append(dfs, list(df))
+    }
+  } 
+  # else {
+  #   # this functionality should be deprecated
+  #   if (datatype == "bionav") {
+  #     if (length(assay_types) == 2){
+  #       mtvc_ptk <- mtvc_rows %>%
+  #         filter(Assay_Type == "PTK") %>%
+  #         do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
+  #       mtvc_stk <- mtvc_rows %>%
+  #         filter(Assay_Type == "STK") %>%
+  #         do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
+  #       df <- left_join(mtvc_ptk, mtvc_stk, by = c("comparison", "stats"))
+  #     } else if (length(assay_types) == 1) {
+  #       df <- mtvc_rows %>% do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
+  #     } 
+  #   } else if (datatype == "tercen") {
+  #     if (length(assay_types) == 2){
+  #       mtvc_ptk <- mtvc_rows %>%
+  #         filter(Assay_Type == "PTK") %>%
+  #         do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
+  #       mtvc_stk <- mtvc_rows %>%
+  #         filter(Assay_Type == "STK") %>%
+  #         do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
+  #       df <- left_join(mtvc_ptk, mtvc_stk, by = c("comparison", "stats"))
+  #     } else if (length(assay_types) == 1){
+  #       df <- mtvc_rows %>% do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
+  #     }
+  #   }
+  #   dfs <- append(dfs, list(df))
+  # }
+  return(dfs)
+}
+
+
+
+parse_tt <- function(stats_files, datatype, assay_types){
+  dfs <- list()
+  ttest_rows <- stats_files %>% filter(Stats != "MTvC")
+  comparisons <- stats_files %>%
+    filter(Stats != "MTvC") %>%
+    distinct(Comparison) %>%
+    pull()
+  for (comparison in comparisons) {
+    c_rows <- ttest_rows %>% filter(Comparison == comparison)
+    if (datatype == "bionav") {
+      if (length(assay_types) == 2){
+        c_ptk <- c_rows %>%
+          filter(Assay_Type == "PTK") %>%
+          do(extract_direction_tt(.$LFC_file, .$Comparison, .$Assay_Type, datatype, .$P_file))
+        c_stk <- c_rows %>%
+          filter(Assay_Type == "STK") %>%
+          do(extract_direction_tt(.$LFC_file, .$Comparison, .$Assay_Type, datatype, .$P_file))
+        df <- left_join(c_ptk, c_stk, by = c("comparison", "stats"))
+      } else if (length(assay_types) == 1) {
+        df <- c_rows %>% do(extract_direction_tt(.$LFC_file, .$Comparison, .$Assay_Type, datatype, .$P_file))
+      }
+    } else if (datatype == "tercen") {
+      if (length(assay_types) == 2){
+        c_ptk <- c_rows %>%
+          filter(Assay_Type == "PTK") %>%
+          do(extract_direction_tt(.$File, .$Comparison, .$Assay_Type, datatype))
+        c_stk <- c_rows %>%
+          filter(Assay_Type == "STK") %>%
+          do(extract_direction_tt(.$File, .$Comparison, .$Assay_Type, datatype))
+        df <- left_join(c_ptk, c_stk, by = c("comparison", "stats"))
+      } else if (length(assay_types) == 1){
+        df <- c_rows %>% do(extract_direction_tt(.$File, .$Comparison, .$Assay_Type, datatype))
+      }
+    }
+    dfs <- append(dfs, list(df))
+  }
+  return(dfs)
+}
+
+
+enrich_results <- function(stats_files){
+  e <- read_csv("data/enrichment_86402_86412_87102_arrays.csv") %>% select(-family, -SeqMatch)
+  
+  if ("TT" %in% stats_files$Stats){
+    ttest_rows <- stats_files %>% filter(Stats != "MTvC")
+    for (i in 1:nrow(ttest_rows)){
+      assaytype <- ttest_rows[i,]$Assay_Type %>% as.character()
+      df <- ttest_rows[i,] %>% 
+        do(extract_phosphosite_data_tt_tercen(filepath = .$File, assay_type = .$Assay_Type))
+      df_e <- left_join(df, e, by = "ID")
+      first_cols <- colnames(df_e)[! colnames(df_e) %in% c("LogFC", "P", "Assay_type")]
+      df_e <- df_e[c(first_cols, "LogFC", "P", "Assay_type")]
+      write_csv(df_e, paste0("99_Saved Plots/TT_", assaytype, "_", ttest_rows[i,]$Comparison,  ".csv"))
+    }
+  }
+  
+  if ("MTvC" %in% stats_files$Stats){
+    mtvc_rows <- stats_files %>% filter(Stats == "MTvC")
+    for (i in 1:nrow(mtvc_rows)){
+      assaytype <- mtvc_rows[i,]$Assay_Type %>% as.character()
+      df <- mtvc_rows[i,] %>% 
+        do(extract_phosphosite_data_mtvc_tercen(filepath = .$File, assay_type = .$Assay_Type))
+      df_e <- left_join(df, e, by = "ID")
+      first_cols <- colnames(df_e)[! colnames(df_e) %in% c("LogFC", "P", "Assay_type")]
+      df_e <- df_e[c(first_cols, "LogFC", "P", "Assay_type")]
+      write_csv(df_e, paste0("99_Saved Plots/MTvC_", assaytype, "_", mtvc_rows[i,]$Group, ".csv"))
+    }
+  }
+}
+
+
 parse_stats_files <- function(stats_files, datatype = "bionav") {
-  # determine first whether study has both PTK and STK
+  if (datatype == "tercen"){
+    enrich_results(stats_files)
+  }
+  
+  # determine whether study has both PTK and STK
   assay_types <- stats_files %>%
     select(Assay_Type) %>%
     unique() %>%
     pull()
-
-  dfs <- list()
-  if (length(assay_types) == 2) {
-    # MTvC first
-    if ("MTvC" %in% stats_files$Stats) {
-      mtvc_rows <- stats_files %>% filter(Stats == "MTvC")
-      groups <- stats_files %>%
-        filter(Stats == "MTvC") %>%
-        distinct(Group) %>%
-        pull()
-      if (!is.na(groups)) {
-        for (group in groups) {
-          group_rows <- mtvc_rows %>% filter(Group == group)
-          if (datatype == "bionav") {
-            mtvc_ptk <- group_rows %>%
-              filter(Assay_Type == "PTK") %>%
-              do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
-            mtvc_stk <- group_rows %>%
-              filter(Assay_Type == "STK") %>%
-              do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
-          } else if (datatype == "tercen") {
-            mtvc_ptk <- group_rows %>%
-              filter(Assay_Type == "PTK") %>%
-              do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
-            mtvc_stk <- group_rows %>%
-              filter(Assay_Type == "STK") %>%
-              do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
-          }
-
-          df <- left_join(mtvc_ptk, mtvc_stk, by = c("comparison", "stats"))
-          dfs <- append(dfs, list(df))
-        }
-      } else {
-        if (datatype == "bionav") {
-          mtvc_ptk <- mtvc_rows %>%
-            filter(Assay_Type == "PTK") %>%
-              do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
-          mtvc_stk <- mtvc_rows %>%
-            filter(Assay_Type == "STK") %>%
-              do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
-        } else if (datatype == "tercen") {
-          mtvc_ptk <- mtvc_rows %>%
-            filter(Assay_Type == "PTK") %>%
-              do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
-          mtvc_stk <- mtvc_rows %>%
-            filter(Assay_Type == "STK") %>%
-              do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
-        }
-        df <- left_join(mtvc_ptk, mtvc_stk, by = c("comparison", "stats"))
-        dfs <- append(dfs, list(df))
-      }
-    }
-    if ("TT" %in% stats_files$Stats) {
-      ttest_rows <- stats_files %>% filter(Stats != "MTvC")
-      comparisons <- stats_files %>%
-        filter(Stats != "MTvC") %>%
-        distinct(Comparison) %>%
-        pull()
-      for (comparison in comparisons) {
-        c_rows <- ttest_rows %>% filter(Comparison == comparison)
-        if (datatype == "bionav") {
-          c_ptk <- c_rows %>%
-            filter(Assay_Type == "PTK") %>%
-            do(extract_direction_tt(.$LFC_file, .$Comparison, .$Assay_Type, datatype, .$P_file))
-          c_stk <- c_rows %>%
-            filter(Assay_Type == "STK") %>%
-            do(extract_direction_tt(.$LFC_file, .$Comparison, .$Assay_Type, datatype, .$P_file))
-        } else if (datatype == "tercen") {
-          c_ptk <- c_rows %>%
-            filter(Assay_Type == "PTK") %>%
-            do(extract_direction_tt(.$File, .$Comparison, .$Assay_Type, datatype))
-          c_stk <- c_rows %>%
-            filter(Assay_Type == "STK") %>%
-            do(extract_direction_tt(.$File, .$Comparison, .$Assay_Type, datatype))
-        }
-
-        df <- left_join(c_ptk, c_stk, by = c("comparison", "stats"))
-        dfs <- append(dfs, list(df))
-      }
-    }
-  } else if (length(assay_types) == 1) {
-    if ("MTvC" %in% stats_files$Stats) {
-      mtvc_rows <- stats_files %>% filter(Stats == "MTvC")
-      groups <- stats_files %>%
-        filter(Stats == "MTvC") %>%
-        distinct(Group) %>%
-        pull()
-      if (!is.na(groups)) {
-        for (group in groups) {
-          group_rows <- mtvc_rows %>% filter(Group == group)
-          if (datatype == "bionav") {
-            df <- group_rows %>% do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
-
-          } else if (datatype == "tercen") {
-            df <- group_rows %>% do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
-          }
-          dfs <- append(dfs, list(df))
-        }
-      } else {
-        if (datatype == "bionav") {
-          df <- mtvc_rows %>% do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
-
-
-        } else if (datatype == "tercen") {
-          df <- mtvc_rows %>% do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
-        }
-        dfs <- append(dfs, list(df))
-      }
-    }
-    if ("TT" %in% stats_files$Stats) {
-      ttest_rows <- stats_files %>% filter(Stats != "MTvC")
-      comparisons <- stats_files %>%
-        filter(Stats != "MTvC") %>%
-        distinct(Comparison) %>%
-        pull()
-      for (comparison in comparisons) {
-        c_rows <- ttest_rows %>% filter(Comparison == comparison)
-        if (datatype == "bionav") {
-          df <- c_rows %>% do(extract_direction_tt(.$LFC_file, .$Comparison, .$Assay_Type, datatype, .$P_file))
-        } else if (datatype == "tercen") {
-          df <- c_rows %>% do(extract_direction_tt(.$File, .$Comparison, .$Assay_Type, datatype))
-        }
-
-        dfs <- append(dfs, list(df))
-      }
-    }
+  
+  if ("MTvC" %in% stats_files$Stats) {
+    dfs <- parse_mtvc(stats_files, datatype, assay_types)
   }
-
-
+  if ("TT" %in% stats_files$Stats) {
+    dfs <- parse_tt(stats_files, datatype, assay_types)
+  }
   return(bind_rows(dfs))
 }
+
 
 #########################################################
 ################ OUTPUT PHOSPHOSITE TABLE ###############
