@@ -370,7 +370,7 @@ enrich_results <- function(stats_files){
       df_e <- left_join(df, e, by = "ID")
       first_cols <- colnames(df_e)[! colnames(df_e) %in% c("LogFC", "P", "Assay_type")]
       df_e <- df_e[c(first_cols, "LogFC", "P", "Assay_type")]
-      write_csv(df_e, paste0("99_Saved Plots/TT_", assaytype, "_", ttest_rows[i,]$Comparison,  ".csv"))
+      write_csv(df_e, paste0("99_Saved Plots/TT_", assaytype, "_", ttest_rows[i,]$Comparison, "_enriched", ".csv"))
     }
   }
   
@@ -383,7 +383,7 @@ enrich_results <- function(stats_files){
       df_e <- left_join(df, e, by = "ID")
       first_cols <- colnames(df_e)[! colnames(df_e) %in% c("LogFC", "P", "Assay_type")]
       df_e <- df_e[c(first_cols, "LogFC", "P", "Assay_type")]
-      write_csv(df_e, paste0("99_Saved Plots/MTvC_", assaytype, "_", mtvc_rows[i,]$Group, ".csv"))
+      write_csv(df_e, paste0("99_Saved Plots/MTvC_", assaytype, "_", mtvc_rows[i,]$Group, "_enriched", ".csv"))
     }
   }
 }
