@@ -401,12 +401,13 @@ parse_stats_files <- function(stats_files, datatype = "bionav") {
     pull()
   
   if ("MTvC" %in% stats_files$Stats) {
-    dfs <- parse_mtvc(stats_files, datatype, assay_types)
+    dfs_m <- parse_mtvc(stats_files, datatype, assay_types)
   }
   if ("TT" %in% stats_files$Stats) {
-    dfs <- parse_tt(stats_files, datatype, assay_types)
+    dfs_t <- parse_tt(stats_files, datatype, assay_types)
   }
-  return(bind_rows(dfs))
+  all_dfs <- append(dfs_m, dfs_t)
+  return(bind_rows(all_dfs))
 }
 
 

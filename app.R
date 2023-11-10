@@ -1,4 +1,4 @@
-APP_VERSION <- "v1.6.0"
+APP_VERSION <- "v1.6.2"
 
 library(shiny)
 library(sortable)
