@@ -232,7 +232,7 @@ The volcano plot visualizes the the effect size (x-axis, LFC or delta) versus si
 
 `r if (!"MTvC" %in% stats_files$Stats) {"\\begin{comment}"}`
 ```{r mtvcvolcanos, fig.cap = paste("MTvC Volcano Plots", if(nrow(stats_files) > 0) {stats_files %>% filter(Stats == "MTvC") %>% pull(Group)}), dpi=150, fig.height=3 * length(assay_types)}
-# stats_files <- read_phosphosite_dir()
+
 if(nrow(stats_files) > 0) {
   if ("MTvC" %in% stats_files$Stats) {
     plot_list <- make_volcano_plots_mtvc(stats_files, datatype = params$datatype)
@@ -282,7 +282,7 @@ The volcano plot visualizes the result of the tests by plotting -– for each te
 `r if (!"TT" %in% stats_files$Stats) {"\\begin{comment}"}`
 
 ```{r ttvolcanos, fig.cap = paste("T-Test Volcano Plots", if (nrow(stats_files) > 0) {stats_files %>% filter(Stats == "TT") %>% pull(Comparison)}), dpi=150, fig.width=2.5 * length(assay_types), fig.height=3}
-# stats_files <- read_phosphosite_dir()
+
 if (nrow(stats_files) > 0) {
   if ("TT" %in% stats_files$Stats) {
     plot_list <- make_volcano_plots_tt(stats_files, datatype = params$datatype)
@@ -296,6 +296,7 @@ if (nrow(stats_files) > 0) {
 ```
 
 ```{r ttheatmaps, fig.cap = paste("T-Test Significant Peptide Heatmaps", if (nrow(stats_files) > 0) {stats_files %>% filter(Stats == "TT") %>% pull(Comparison)}), dpi = 150, fig.width = 6, fig.height = 7}
+
 if (nrow(stats_files) > 0) {
   if ("TT" %in% stats_files$Stats) {
     if ("heatmap" %in% params$`phosphosite_heatmap`) {

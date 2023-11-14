@@ -246,7 +246,7 @@ extract_direction_mtvc <- function(filepath, assay_type, group, datatype, p_file
 
 
 
-parse_mtvc <- function(stat_files, datatype, assay_types){
+parse_mtvc <- function(stats_files, datatype, assay_types){
   dfs <- list()
   mtvc_rows <- stats_files %>% filter(Stats == "MTvC")
   groups <- stats_files %>%
@@ -283,7 +283,7 @@ parse_mtvc <- function(stat_files, datatype, assay_types){
       }
       dfs <- append(dfs, list(df))
     }
-  } 
+  }
   # else {
   #   # this functionality should be deprecated
   #   if (datatype == "bionav") {
@@ -400,13 +400,15 @@ parse_stats_files <- function(stats_files, datatype = "bionav") {
     unique() %>%
     pull()
   
+  all_dfs <- list()
   if ("MTvC" %in% stats_files$Stats) {
     dfs_m <- parse_mtvc(stats_files, datatype, assay_types)
+    all_dfs <- append(all_dfs, dfs_m)
   }
   if ("TT" %in% stats_files$Stats) {
     dfs_t <- parse_tt(stats_files, datatype, assay_types)
+    all_dfs <- append(all_dfs, dfs_t)
   }
-  all_dfs <- append(dfs_m, dfs_t)
   return(bind_rows(all_dfs))
 }
 
