@@ -188,6 +188,7 @@ render_kinase_plot <- function(df, range_df, color_type = "specificity", xax_sca
     pull()
 
   if (color_type == "family") {
+    df$`Kinase Family`[is.na(df$`Kinase Family`)] <- "NaN"
     df$KinaseFamilyClr <- df$`Kinase Family`
     for (family in unique(df$`Kinase Family`)) {
       if (sum(str_detect(df$`Kinase Family`, family)) == 1) {
