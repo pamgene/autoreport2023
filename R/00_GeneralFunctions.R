@@ -93,41 +93,43 @@ read_kinase_dir <- function(folder = "03_Kinase Analysis/") {
   files <- list.files(folder, pattern = ".txt$|.csv$", full.names = TRUE, include.dirs = FALSE)
   
   # decide if it is new uka
-  # if it is new uka, make the same dataformat as old uka, savelog and read the files again
-  # if (any(grepl("_ukam-|_ukat-", files))){
-  #   files_to_process <- list.files(folder, pattern = "_uka[m|t]-", full.names = TRUE, include.dirs = FALSE)
-  #   counter <- 0
-  #   for (f in files_to_process){
-  #     uka <- read_delim(f, show_col_types = FALSE) %>% clean_tercen_columns()
-  #     colnames(uka)[1] <- "Comparison"
-  #     ctrl <- sub(".*vs(.+)\\.csv", "\\1", f) %>% str_trim()
-  #     test <- sub(".*uka[m|t]-(.+)vs.*", "\\1", f) %>% str_trim()
-  #     comparison <- sub(".*uka[m|t]-(.+ vs .+)\\.csv", "\\1", f)
-  #     assay_type <- sub(".*UKA_(.TK)_.*", "\\1", f)
-  #     ukatype <- sub(".*[0-9]{2,}_(uka.)-.*", "\\1", f)
-  #     
-  #     split_uka <- split(uka, uka[,1])
-  #     # pivot wider & clean columns
-  #     split_uka_w <- lapply(split_uka, function(x) pivot_wider(x, names_from = variable, values_from = value))
-  #     split_uka_w <- lapply(split_uka_w, function(x) clean_tercen_columns(x) %>% select(-Comparison))
-  #     # save
-  #     sapply(names(split_uka_w), 
-  #            function (x){
-  #              counter <<- counter + 1
-  #              filename <- ifelse(ukatype == "ukam", 
-  #                                 paste0(folder, "/UKA_", assay_type, "_", sprintf("%02d",counter), "_", test, " - ", x, " vs ", ctrl, ".csv"),
-  #                                 paste0(folder, "/UKA_", assay_type, "_", sprintf("%02d",counter), "_", x, " - ", comparison, ".csv"))
-  #              write_csv(split_uka_w[[x]], filename)
-  #              filename_to_report <- ifelse(ukatype == "ukam", 
-  #                                           paste0("99_Saved Plots/UKA_", assay_type, "_", sprintf("%02d",counter), "_", test, " - ", x, " vs ", ctrl, ".csv"),
-  #                                           paste0("99_Saved Plots/UKA_", assay_type, "_", sprintf("%02d",counter), "_", x, " - ", comparison, ".csv"))
-  #              
-  #              write_csv(split_uka_w[[x]], filename_to_report)
-  #            })
-  #     counter <- counter
-  #   }
-  #   files <- files[!files %in% files_to_process]
-  # }
+  # if it is new uka, make the same dataformat as old uka, save and read the files again
+  if (any(grepl("_ukam-|_ukat-", files))){
+    files_to_process <- list.files(folder, pattern = "_uka[m|t]-", full.names = TRUE, include.dirs = FALSE)
+    counter <- 0
+    for (f in files_to_process){
+      uka <- read_delim(f, show_col_types = FALSE) %>% clean_tercen_columns()
+      colnames(uka)[1] <- "Comparison"
+      ctrl <- sub(".*vs(.+)\\.csv", "\\1", f) %>% str_trim()
+      test <- sub(".*uka[m|t]-(.+)vs.*", "\\1", f) %>% str_trim()
+      comparison <- sub(".*uka[m|t]-(.+ vs .+)\\.csv", "\\1", f)
+      assay_type <- sub(".*UKA_(.TK)_.*", "\\1", f)
+      ukatype <- sub(".*[0-9]{2,}_(uka.)-.*", "\\1", f)
+      
+      split_uka <- split(uka, uka[,1])
+      # pivot wider & clean columns
+      #split_uka_w <- lapply(split_uka, function(x) pivot_wider(x, names_from = variable, values_from = value))
+      split_uka_w <- lapply(split_uka, function(x) clean_tercen_columns(x) %>% select(-Comparison))
+      # save
+      sapply(names(split_uka_w), 
+             function (x){
+               counter <<- counter + 1
+               filename <- ifelse(ukatype == "ukam", 
+                                  paste0(folder, "/UKA_", assay_type, "_", sprintf("%02d",counter), "_", test, " - ", x, " vs ", ctrl, ".csv"),
+                                  paste0(folder, "/UKA_", assay_type, "_", sprintf("%02d",counter), "_", x, " - ", comparison, ".csv"))
+               # save to the 03_Kinase Analysis folder to read again
+               write_csv(split_uka_w[[x]], filename)
+               filename_to_report <- ifelse(ukatype == "ukam", 
+                                            paste0("99_Saved Plots/UKA_", assay_type, "_", sprintf("%02d",counter), "_", test, " - ", x, " vs ", ctrl, ".csv"),
+                                            paste0("99_Saved Plots/UKA_", assay_type, "_", sprintf("%02d",counter), "_", x, " - ", comparison, ".csv"))
+               # save to output folder
+               write_csv(split_uka_w[[x]], filename_to_report)
+             })
+      counter <- counter
+    }
+    files <- list.files(folder, pattern = ".txt$|.csv$", full.names = TRUE, include.dirs = FALSE)
+    files <- files[!files %in% files_to_process]
+  }
 
   
   
