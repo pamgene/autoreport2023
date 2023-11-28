@@ -100,6 +100,7 @@ read_kinase_dir <- function(folder = "03_Kinase Analysis/") {
     for (f in files_to_process){
       uka <- read_delim(f, show_col_types = FALSE) %>% clean_tercen_columns()
       colnames(uka)[1] <- "Comparison"
+      uka <- uka %>% arrange(-`Median Final score`)
       ctrl <- sub(".*vs(.+)\\.csv", "\\1", f) %>% str_trim()
       test <- sub(".*uka[m|t]-(.+)vs.*", "\\1", f) %>% str_trim()
       comparison <- sub(".*uka[m|t]-(.+ vs .+)\\.csv", "\\1", f)
