@@ -214,7 +214,8 @@ The following plot(s) show the results from the statistical tests:
 * Significant phosphosites (LFC or Scaled heatmaps) – provided separately.
 `r if ("heatmap" %in% params$normalizations) {"\\end{comment}"}`
 
-Results from the above tests are provided in Excel-readable format.
+Results from the above tests are provided in Excel-readable format. 
+The phosphosite level statistical tests (MTvC and/ T-test) results in LFC and p-values for each Peptide ID or sequence. Each sequence can have a 90 to 100% similarity match (using BLAST) with 1 or more UniPROT proteins. Therefore the Report results folder contains additional [*_enriched.csv] files that are enriched with Sequence, UniPROT and Gene name. This is useful for biological interpretation or pathway and network analyses. The LFC and p-values are the same for each unique Peptide ID across the different UniPROT matches.
 
 `r if (!"MTvC" %in% stats_files$Stats) {"\\begin{comment}"}`
 
