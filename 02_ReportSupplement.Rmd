@@ -388,4 +388,23 @@ if (nrow(kinase_files) > 0) {
 
 ```
 
+# Suggestions for validating results
+
+To validate results, we recommend selecting kinases that consistently appear with high Final and Specificity Scores in experiments carried out with at least 3 or 6 replicates per condition for cell lines or primary cell cultures respectively.
+
+We recommend selecting kinases for validation rather than phosphosites. The reasons:
+
+1.	PamGene analysis identifies activated kinases in the lysate by detecting phosphorylation of their targets (phosphosites) on the PamChip. It is possible that targets are not present in the lysate in their native form, but the predicted kinase is present. 
+
+2.	Phosphorylation by a kinase on a certain phosphosite can have different outcomes. For example, induction or inhibition of the affected protein(s). 
+
+3.	To validate predicted kinases, as one of the methods, we suggest to carry out the following experiments with Western blot, using both Test and Control lysates:
+*	To validate that the kinase activity is upregulated in Test vs Control, select antibodies specific for phosphosites on the kinase that lead to induction of the kinase activity.
+*	To validate that the kinase activity is downregulated in Test vs Control: choose antibodies specific for phosphosites on the kinase that lead to inhibition of the kinase activity.
+
+Sites such as Uniprot and PhosphoSitePlus can help in choosing the specific phosphosites or PamGene can help identifying such phosphosites on request, as an additional service.
+
+4.	If the approach to validate a kinase is not possible, validation of downstream phosphosites activated by the kinase can be performed. PamGene can help identifying such phosphosites on request.
+
+
 # References

@@ -129,4 +129,6 @@ The kinome tree overview, as well as numerical data and score plots can be found
 
 Further insights into pathway analysis and networks could be interesting.
 
-Free online tutorials for publicly available pathway analysis tools are provided here: https://pamgene.com/ps12/ 
+Free online tutorials for publicly available pathway analysis tools are provided here: https://pamgene.com/ps12/
+
+To validate results, refer to the guideline in the Report Supplement Section 3.
