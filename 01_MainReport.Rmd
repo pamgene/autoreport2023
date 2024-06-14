@@ -49,7 +49,7 @@ Project aim:
 Comparisons:
 `r params$comparisons`
 
-Notation used: T v C means Test v Control, Ratio of T/C; Values > 0 mean increased phosphorylation or kinase activity in T compared to C; Values < 0 mean lower phosphorylation or kinase activity in T compared to C. 
+Notation used: T vs C means Test vs Control, Ratio of T/C; Values > 0 mean increased phosphorylation or kinase activity in T compared to C; Values < 0 mean lower phosphorylation or kinase activity in T compared to C. 
 We recommend replicates of n=3+ per test condition for cell line experiments and n=6+ per test condition for in vivo models or primary cells. Comparisons with replicates of n<3 per group should be considered as a preliminary or trend analysis rather than biologically conclusive results. 
 
 
