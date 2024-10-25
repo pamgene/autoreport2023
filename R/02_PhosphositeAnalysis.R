@@ -359,7 +359,7 @@ parse_tt <- function(stats_files, datatype, assay_types){
 
 
 enrich_results <- function(stats_files){
-  e <- read_csv("data/enrichment_86402_86412_87102_arrays.csv") %>% select(-family, -SeqMatch)
+  e <- read_csv("data/enrichment_86312_86402_86412_87102_87202_arrays.csv") %>% select(-family, -SeqMatch)
   
   if ("TT" %in% stats_files$Stats){
     ttest_rows <- stats_files %>% filter(Stats != "MTvC")
