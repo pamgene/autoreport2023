@@ -8,6 +8,7 @@ signal_heatmap: 'yes'
 phosphosite_heatmap: ~
 kinase_analysis: []
 xax_scale: 'yes'
+fscore_thr: 1.3
 coral_ks_thr: 'coral_auto'
 coral_min: -3
 coral_max: 3

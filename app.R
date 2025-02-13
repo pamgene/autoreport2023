@@ -29,6 +29,7 @@ ui <- fluidPage(
                 checkboxGroupInput("heatmap", "Significant Peptide Heatmap", choices = c("Yes" = "heatmap")),
                 checkboxGroupInput("kinase_analysis", "Kinase Analysis", 
                                    choices = c("Score Plot - family" = "splotf", "Score Plot - specificity" = "splots", "Score Table" = "table", "Coral Tree" = "tree")),
+                #numericInput("fscore_thr", "Final Score threshold", 1.3, 0, 10, step = 0.1),
                 radioButtons(
                   "coral_ks_thrs", "Coral Kinase Statistics thresholds", choices = c("Automatic" = "coral_auto", "Manual" = "coral_man")),
                 conditionalPanel("input.coral_ks_thrs == 'coral_man'",
@@ -99,6 +100,7 @@ server <- function(input, output, session) {
     updateCheckboxGroupInput(session, "heatmap", selected = ifelse(is.null(params_list$`phosphosite_heatmap`), character(0), "heatmap"))
     #updateCheckboxGroupInput(session, "kinase_analysis", selected = params_list$`kinase_analysis`)
     updateRadioButtons(session, 'coral_ks_thrs', selected = param_list$`coral_ks_thrs`)
+    #updateNumericInput(session, "fscore_thr", selected = param_list$`fscore_thr`)
     updateRadioButtons(session, "datatype", selected = params_list$datatype)
   }
 
@@ -113,6 +115,7 @@ server <- function(input, output, session) {
             "signal_heatmap" = input$`signal_heatmap`,
             "phosphosite_heatmap" = input$heatmap,
             "kinase_analysis" = input$`kinase_analysis`,
+            #"fscore_thr" = input$`fscore_thr`,
             "coral_ks_thrs" = input$`coral_ks_thrs`,
             "coral_min" = input$`coral_min`,
             "coral_max" = input$`coral_max`,
