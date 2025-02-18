@@ -57,30 +57,32 @@ read_phosphosite_dir <- function(folder = "02_Phosphosite Analysis/", datatype =
     assay_type <- file_elements[[1]][2]
 
     if (stats_type == "MTvC") {
-      if (length(file_elements[[1]]) > 3) {
-        order <- as.integer(file_elements[[1]][3])
-        group <- file_elements[[1]][4]
-      } else {
-        order <- 1
-        group <- NA
-      }
+      # only multiple MTvCs are allowed
+      order <- as.integer(file_elements[[1]][3]) + 1
+      group <- file_elements[[1]][4]
       comparison <- "MTvC"
     } else if (stats_type == "TT") {
-      order <- as.integer(file_elements[[1]][3]) + 1
+      order <- as.integer(file_elements[[1]][3]) + 2
       comparison <- file_elements[[1]][4]
       comparison <- str_replace(comparison, "\\Bvs\\B", " vs ")
       group <- NA
+    } else if (stats_type == "Limma"){
+      order <- as.integer(file_elements[[1]][3])
+      comparison <- "Limma"
+      group <- file_elements[[1]][4]
     }
 
     if (datatype == "bionav") {
       if (str_detect(file_elements[[1]][length(file_elements[[1]])], "LogFC")) {
         p_val_file <- str_replace(file, "LogFC", "p")
-        df <- tibble("Order" = order, "Comparison" = comparison, "Stats" = stats_type, "Assay_Type" = assay_type, "Group" = group, "LFC_file" = file, "P_file" = p_val_file)
+        df <- tibble("Order" = order, "Comparison" = comparison, "Stats" = stats_type, 
+                     "Assay_Type" = assay_type, "Group" = group, "LFC_file" = file, "P_file" = p_val_file)
       } else if (str_detect(file_elements[[1]][length(file_elements[[1]])], "_p.txt")) {
         break
       }
     } else if (datatype == "tercen") {
-      df <- tibble("Order" = order, "Comparison" = comparison, "Stats" = stats_type, "Assay_Type" = assay_type, "Group" = group, "File" = file)
+      df <- tibble("Order" = order, "Comparison" = comparison, "Stats" = stats_type, 
+                   "Assay_Type" = assay_type, "Group" = group, "File" = file)
     }
     dfs[[i]] <- df
   }

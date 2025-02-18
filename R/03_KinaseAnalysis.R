@@ -30,7 +30,7 @@ read_uka_file <- function(uka_file, assay_type) {
 extract_top_kinases <- function(uka_file, assay_type, comparison) {
   uka <- read_uka_file(uka_file)
   uka <- uka %>%
-    filter(`Median Final score` > 1.3) %>%
+    filter(`Median Final score` > params$`fscore_thr`) %>%
     slice_head(n = 10)
   uka <- uka %>% select(`Kinase Name`, `Median Kinase Statistic`)
   down <- uka %>%

@@ -51,12 +51,12 @@
       "Repository": "CRAN",
       "Hash": "dcd1743af4336156873e3ce3c950b8b9"
     },
-    "EnhancedVolcano": {
-      "Package": "EnhancedVolcano",
-      "Version": "1.12.0",
-      "Source": "Bioconductor",
-      "Hash": "19ab212b6e6acb3c66e38ce6f5ca8ed2"
-    },
+   # "EnhancedVolcano": {
+   #   "Package": "EnhancedVolcano",
+   #   "Version": "1.12.0",
+   #   "Source": "Bioconductor",
+   #   "Hash": "19ab212b6e6acb3c66e38ce6f5ca8ed2"
+   # },
     "KernSmooth": {
       "Package": "KernSmooth",
       "Version": "2.23-20",

@@ -8,6 +8,7 @@ params:
   normalizations: NULL
   kinase_analysis: NULL
   score_plot_color: NULL
+  fscore_thr: NULL
   coral_ks_thrs: NULL
   coral_min: NULL
   coral_max: NULL
@@ -92,7 +93,8 @@ As a first data analysis step, the quality of the dataset is assessed based on P
 
 ## Phosphosite Analysis
 
-Next, differentially phosphorylated phosphosites between conditions are identified using T-tests or ANOVA-Dunnett test. The signal per phosphosite is the result of the phosphorylation by one or more kinases. This information is useful to place the Upstream Kinase Analysis (UKA) in context and shows the overall trend and direction of the treatment or condition effect, as well as the effect size. When the peptide-level data is not significant (<8 significant phosphosites per assay type, per comparison), we consider UKA to be a preliminary or trend analysis that needs further exploration, perhaps with increased number of replicates. 
+Next, differentially phosphorylated phosphosites between conditions are identified with statistical tests. 
+The signal per phosphosite is the result of the phosphorylation by one or more kinases. Phosphosite-level data shows the overall trend and direction of the test effect, as well as the effect size. This is useful to place the Upstream Kinase Analysis (UKA) in context. Importantly, when the phosphosite data is not significant (<8 significant phosphosites per assay type, per comparison), we consider UKA to be a preliminary or trend analysis that needs further exploration, perhaps with increased number of replicates. 
 See also Supplement section 2.3. The table below shows the statistical analysis for each comparison.
 
 ```{r phosphosite analysis}
@@ -109,9 +111,9 @@ Corresponding volcano plots can be found in Supplement section 2.3.
 
 \newpage
 
-## Upstream Kinase Analysis
+## Upstream Kinase Analysis (UKA)
 
-Each kinase phosphorylates multiple phosphosites on the PamChip. To address which kinases are responsible for the phosphorylation differences between conditions, we perform an Upstream Kinase Analysis, explained in Supplement section 2.4. UKA uses sets of phosphosites, which are linked to each kinase to predict differential kinase activity. The main results from UKA, the top 10 kinases above the default threshold (Kinase Score > 1.3) are shown in the Table below. For details refer to Supplement 2.4.
+Kinases phosphorylate multiple phosphosites on the PamChip. To address which kinases are responsible for the phosphorylation differences between conditions, we perform Upstream Kinase Analysis (UKA), explained in Supplement section 2.4. The UKA predicts potential kinases by examining changes in their associated phosphosite sets. These phosphosite sets are derived from publicly available databases of kinase-protein-phosphosite relationships. The top 10 kinases above the default threshold (Kinase Score > 1.3) are shown in the Table below. For details refer to Supplement 2.4.
 
 ```{r kinase analysis}
 kinase_files <- read_kinase_dir()

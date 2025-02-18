@@ -8,6 +8,7 @@ params:
   normalizations: NULL
   kinase_analysis: NULL
   score_plot_color: NULL
+  fscore_thr: NULL
   coral_ks_thrs: NULL
   coral_min: NULL
   coral_max: NULL
@@ -188,7 +189,6 @@ for (assay_type in qc_assay_types) {
 ### Differential statistical analysis methods: “Test condition(s)” versus “Control”
 
 To identify significant differences between the conditions at the phosphosite level, the following statistical tests are used: 
-
 ```{r stats methods, echo=FALSE}
 stats_files <- read_phosphosite_dir(datatype = params$datatype)
 if (nrow(stats_files) > 0) {
@@ -207,6 +207,10 @@ if (nrow(stats_files) > 0) {
 * T-test (TT): To compare one Test Condition versus Control, two-sided Student’s T-test (paired or unpaired) are performed.
 `r if (!"TT" %in% stats_files$Stats) {"\\end{comment}"}`
 
+`r if (!"Limma" %in% stats_files$Stats) {"\\begin{comment}"}`
+* LIMMA (Linear Models for Micro Arrays): LIMMA, instead of analyzing each peptide in isolation, uses information from all the peptides and conditions in the experiment to improve its analysis. Applying LIMMA leads to results with increased statistical power over individual testing per peptide. 
+`r if (!"Limma" %in% stats_files$Stats) {"\\end{comment}"}`
+
 The following plot(s) show the results from the statistical tests:
 
 * Volcano plot, useful for an overview of the Test condition vs control. Volcano plots visualize the significance (y-axis, -log10(p value)) versus the effect size (x-axis, LFC or delta) of each test. Red dots are phosphosites that show significant difference compared to control (p<0.05, i.e. -log10(p)>1.3).
@@ -215,25 +219,19 @@ The following plot(s) show the results from the statistical tests:
 `r if ("heatmap" %in% params$normalizations) {"\\end{comment}"}`
 
 Results from the above tests are provided in Excel-readable format. 
-The phosphosite level statistical tests (MTvC and/ T-test) results in LFC and p-values for each Peptide ID or sequence. Each sequence can have a 90 to 100% similarity match (using BLAST) with 1 or more UniPROT proteins. Therefore the Report results folder contains additional [*_enriched.csv] files that are enriched with Sequence, UniPROT and Gene name. This is useful for biological interpretation or pathway and network analyses. The LFC and p-values are the same for each unique Peptide ID across the different UniPROT matches.
+The phosphosite level statistical tests result in LFC and p-values for each Peptide sequence. Each sequence can have a > 90% similarity match with 1 or more proteins. Therefore the Report results folder contains additional [*_enriched.csv] files that contain annotation of Sequence, UniPROT ID and Primary Gene name. This is useful for biological interpretation or pathway and network analyses. The LFC and p-values are the same for each unique Peptide ID across the different matching proteins.
 
-`r if (!"MTvC" %in% stats_files$Stats) {"\\begin{comment}"}`
 
-### MTvC Results
+\newpage
+### Volcano plots
 
-`r if (!"MTvC" %in% stats_files$Stats) {"\\end{comment}"}`
-
-`r # if (volcano_text_printed == TRUE) {"\\begin{comment}"}`
-`r # if (volcano_text_printed == TRUE) {"\\end{comment}"}`
-
-`r # volcano_text_printed <- TRUE`
 
 `r if (!"MTvC" %in% stats_files$Stats) {"\\begin{comment}"}`
 ```{r mtvcvolcanos, fig.cap = paste("MTvC Volcano Plots", if(nrow(stats_files) > 0) {stats_files %>% filter(Stats == "MTvC") %>% pull(Group)}), dpi=150, fig.height=3 * length(assay_types)}
 
 if(nrow(stats_files) > 0) {
   if ("MTvC" %in% stats_files$Stats) {
-    plot_list <- make_volcano_plots_mtvc(stats_files, datatype = params$datatype)
+    plot_list <- make_volcano_plots(stats_files, stats_type = "MTvC", datatype = params$datatype)
     for (i in seq_along(plot_list)) {
       print(plot_list[[i]])
     }
@@ -247,7 +245,7 @@ if(nrow(stats_files) > 0) {
 if (nrow(stats_files) > 0) {
   if ("MTvC" %in% stats_files$Stats) {
     if ("heatmap" %in% params$`phosphosite_heatmap`) {
-      heatmaps <- make_heatmaps_mtvc(stats_files, datatype = params$datatype)
+      heatmaps <- make_heatmaps(stats_files, stats_type = "MTvC", datatype = params$datatype)
     }
     # heatmaps are not printed in the report anymore - they are provided separately
     # if ("heatmap" %in% params$`phosphosite_heatmap`) {
@@ -264,24 +262,12 @@ if (nrow(stats_files) > 0) {
 
 
 `r if (!"TT" %in% stats_files$Stats) {"\\begin{comment}"}`
-\newpage
-### T-Test Results
-
-`r if (!"TT" %in% stats_files$Stats) {"\\end{comment}"}`
-
-`r # if (volcano_text_printed == TRUE) {"\\begin{comment}"}`
-
-`r # if (volcano_text_printed == TRUE) {"\\end{comment}"}`
-
-`r # volcano_text_printed <- TRUE`
-
-`r if (!"TT" %in% stats_files$Stats) {"\\begin{comment}"}`
 
 ```{r ttvolcanos, fig.cap = paste("T-Test Volcano Plots", if (nrow(stats_files) > 0) {stats_files %>% filter(Stats == "TT") %>% pull(Comparison)}), dpi=150, fig.width=2.5 * length(assay_types), fig.height=3}
 
 if (nrow(stats_files) > 0) {
   if ("TT" %in% stats_files$Stats) {
-    plot_list <- make_volcano_plots_tt(stats_files, datatype = params$datatype)
+    plot_list <- make_volcano_plots(stats_files, stats_type = "TT", datatype = params$datatype)
     for (i in seq_along(plot_list)) {
       print(plot_list[[i]])
       
@@ -291,12 +277,13 @@ if (nrow(stats_files) > 0) {
 
 ```
 
+
 ```{r ttheatmaps, fig.cap = paste("T-Test Significant Peptide Heatmaps", if (nrow(stats_files) > 0) {stats_files %>% filter(Stats == "TT") %>% pull(Comparison)}), dpi = 150, fig.width = 6, fig.height = 7}
 
 if (nrow(stats_files) > 0) {
   if ("TT" %in% stats_files$Stats) {
     if ("heatmap" %in% params$`phosphosite_heatmap`) {
-      heatmaps <- make_heatmaps_tt(stats_files, datatype = params$datatype)
+      heatmaps <- make_heatmaps(stats_files, stats_type = "TT", datatype = params$datatype)
     }
     # heatmaps are not printed in the report anymore - they are provided separately
     # if ("heatmap" %in% params$`phosphosite_heatmap`) {
@@ -308,7 +295,34 @@ if (nrow(stats_files) > 0) {
 }
 
 ```
+
 `r if (!"TT" %in% stats_files$Stats) {"\\end{comment}"}`
+
+`r if (!"Limma" %in% stats_files$Stats) {"\\begin{comment}"}`
+
+```{r limmavolcanos, fig.cap = paste("Limma Volcano Plots", if(nrow(stats_files) > 0) {stats_files %>% filter(Stats == "Limma") %>% pull(Group)}), dpi=150, fig.height=3 * length(assay_types)}
+
+if(nrow(stats_files) > 0) {
+  if ("Limma" %in% stats_files$Stats) {
+    plot_list <- make_volcano_plots(stats_files, stats_type = "Limma", datatype = params$datatype)
+    for (i in seq_along(plot_list)) {
+      print(plot_list[[i]])
+    }
+  }
+}
+```
+
+
+```{r limmaheatmaps, fig.cap = paste("Limma Significant Peptide Heatmaps", if(nrow(stats_files) > 0) {stats_files %>% filter(Stats == "Limma") %>% pull(Group)}), dpi=150, fig.height=6, fig.width = 3 * length(assay_types)}
+if (nrow(stats_files) > 0) {
+  if ("Limma" %in% stats_files$Stats) {
+    if ("heatmap" %in% params$`phosphosite_heatmap`) {
+      heatmaps <- make_heatmaps(stats_files, stats_type = "Limma", datatype = params$datatype)
+    }
+  }
+}
+```
+
 
 \newpage
 
@@ -328,6 +342,9 @@ The UKA algorithm returns the following scores:
 * **Specificity Score**: the specificity of the Kinase Statistic is based on a permutation test, where the peptides are permuted. The Kinase Statistic is recalculated for each permutation.  The Specificity Score is based on the difference between the Kinase Statistic of the actual sample versus that of the permuted samples. A high Specificity Score means a high probability that the observed effect could not have been obtained by a random set of peptides. 
 
 * **Kinase Score (Median Final Score)**: the sum of the Significance Score and the Specificity Score. Kinases are ordered by this score. 
+
+To learn more about the calculation of these scores, refer to: https://pamgene.com/wp-content/uploads/2024/08/Flyer_PamGene-Upstream-Kinase-Analysis-Tool.pdf
+
 
 ```{r include=any(c("splotf", "splots", "table", "tree") %in% params$kinase_analysis), results ='asis'}
 cat("The UKA algorithm generates the following plots:")
@@ -384,9 +401,9 @@ if (nrow(kinase_files) > 0) {
 ```
 
 
-# For biological interpretation
+# Tools for biological interpretation
 
-For biological interpretation, the following pathway or network analysis tools could be useful to explore. Refer to the Results Data Tables provided separately.
+For biological interpretation, we provide information here about pathway and network analysis tools. Refer to the Results Data Tables provided separately.
 For a specific comparison you can use:
 1. Phosphosite level data: we suggest to combine the PTK and STK significant results from the TT or MTvC. Use the proteins mapped to phosphosites (in the “_enriched” files). Since multiple phosphosites can map to one protein, we suggest to use the mean. (Significant phosphosites: p value<0.05; or set your own more/ less stringent cut-off). Effect direction and size: Use LFC / delta. 
 
