@@ -184,7 +184,17 @@ server <- function(input, output, session) {
     output$download <- renderUI({ NULL })
     output$`qc_table` <- renderTable(read_qc_dir())
     output$`phosphosite_table` <- renderTable(read_phosphosite_dir(datatype = input$datatype))
-    output$`kinase_table` <- renderTable(read_kinase_dir())
+    
+    # Make kinase table and save it
+    if (!dir.exists("temp")){
+      dir.create("temp")
+    }
+    
+    kinase_table <- read_kinase_dir()
+    write_csv(kinase_table, file = "temp/kinase_files.csv")
+    output$`kinase_table` <- renderTable(kinase_table)
+    
+    
   })
 
   observe({

@@ -640,9 +640,13 @@ make_volcano_plots <- function(stats_files, stats_type = "MTvC", datatype = "bio
       c_stk <- process_data(c_rows %>% filter(Assay_Type == "STK"), "STK")
       df <- bind_rows(c_ptk, c_stk)
       
-      p_ptk <- create_plot(df %>% filter(Assay_type == "PTK"), group, "PTK")
-      p_stk <- create_plot(df %>% filter(Assay_type == "STK"), group, "STK")
+      p_ptk <- render_volcano_plot(c_ptk, stats_range$lfc, stats_range$p)
+      p_stk <- render_volcano_plot(c_stk, stats_range$lfc, stats_range$p)
+      
       pg <- plot_grid(p_ptk, p_stk, ncol = 1, labels = c("PTK", "STK"))
+      ggsave(paste0("99_Saved Plots/", stats_type, "_", group, "_Volcano.pdf"), pg, 
+             width = 8.27, height = 11.69, units = "in", dpi = 300)
+      
       plots[[length(plots) + 1]] <- pg
     }
   } else if (length(assay_types) == 1) {

@@ -17,11 +17,11 @@ set_null_device("cairo")
 
 read_uka_file <- function(uka_file, assay_type) {
   df <- read_delim(uka_file, show_col_types = FALSE)
-
+  
   file_base <- basename(uka_file)
   file_base <- tools::file_path_sans_ext(file_base)
   file_elements <- str_split(file_base, pattern = "_")
-
+  
   assay_type <- file_elements[[1]][2]
   df$Assay_type <- assay_type
   return(df)
@@ -31,18 +31,18 @@ extract_top_kinases <- function(uka_file, assay_type, comparison) {
   uka <- read_uka_file(uka_file)
   uka <- uka %>%
     filter(`Median Final score` > params$`fscore_thr`) %>%
-    slice_head(n = 10)
-  uka <- uka %>% select(`Kinase Name`, `Median Kinase Statistic`)
+    slice_head(n = 10) %>% 
+    select(`Kinase Name`, `Median Kinase Statistic`)
   down <- uka %>%
     filter(`Median Kinase Statistic` < 0) %>%
     pull(`Kinase Name`)
   up <- uka %>%
     filter(`Median Kinase Statistic` > 0) %>%
     pull(`Kinase Name`)
-
+  
   down <- paste(down, collapse = ", ")
   up <- paste(up, collapse = ", ")
-
+  
   if (assay_type == "PTK") {
     df <- tibble("comparison" = comparison, "up_PTK" = up, "down_PTK" = down)
   } else if (assay_type == "STK") {
@@ -75,7 +75,7 @@ extract_kinase_table <- function(kinase_file, assay_type) {
     )
   df <- rownames_to_column(df, var = "Rank")
   colnames(df) <- c("Rank", paste(assay_type, "Name", sep = "_"), paste(assay_type, "Score", sep = "_"), paste(assay_type, "Statistic", sep = "_"))
-
+  
   return(df)
 }
 
@@ -86,7 +86,7 @@ extract_coral_data <- function(kinase_file, assay_type) {
 
 get_uka_data_range <- function(kinase_files) {
   df <- bind_rows(lapply(kinase_files$UKA_file, read_uka_file))
-
+  
   df <- df %>%
     group_by(Assay_type) %>%
     summarise(max_mks = max(`Median Kinase Statistic`), min_mks = min(`Median Kinase Statistic`)) %>%
@@ -102,19 +102,13 @@ get_uka_data_range <- function(kinase_files) {
 ############## STRINGIFY KINASE DIRECTION ###############
 #########################################################
 
-
 parse_kinase_files <- function(kinase_files) {
   # determine first whether study has both PTK and STK
-  assay_types <- kinase_files %>%
-    select(Assay_Type) %>%
-    unique() %>%
-    pull()
-
+  assay_types <- unique(kinase_files$Assay_Type)
+  
   # then get all unique comparisons
-  comparisons <- kinase_files %>%
-    distinct(Comparison) %>%
-    pull()
-
+  comparisons <- unique(kinase_files$Comparison)
+  
   dfs <- list()
   for (comparison in comparisons) {
     if (length(assay_types) == 2) {
@@ -136,6 +130,7 @@ parse_kinase_files <- function(kinase_files) {
   return(bind_rows(dfs))
 }
 
+
 make_report_table <- function(res_table, caption) {
   # identify first which assay types are included
   assay_types <- str_extract(colnames(res_table), ".TK") %>%
@@ -151,7 +146,7 @@ make_report_table <- function(res_table, caption) {
       add_header_row(values = header_row, colwidths = header_widths)
   } else if (length(assay_types) == 1) {
     header_widths <- c(1, 2)
-
+    
     if (assay_types[1] == "PTK") {
       ft <- flextable(res_table) %>%
         set_header_labels(comparison = "Comparisons", up_PTK = "Up", down_PTK = "Down") %>%
@@ -181,12 +176,9 @@ make_report_table <- function(res_table, caption) {
 
 render_kinase_plot <- function(df, range_df, color_type = "specificity", xax_scale = "yes") {
   df$Assay_type <- as.factor(df$Assay_type)
-
-  assay_types <- df %>%
-    select(Assay_type) %>%
-    unique() %>%
-    pull()
-
+  
+  assay_types <- unique(df$Assay_type)
+  
   if (color_type == "family") {
     df$`Kinase Family`[is.na(df$`Kinase Family`)] <- "NaN"
     df$KinaseFamilyClr <- df$`Kinase Family`
@@ -196,16 +188,16 @@ render_kinase_plot <- function(df, range_df, color_type = "specificity", xax_sca
       }
     }
     df$KinaseFamilyClr <- as.factor(df$KinaseFamilyClr)
-
-
-
+    
+    
+    
     plotlist <- list()
     for (i in seq_along(assay_types)) {
       assay_type <- assay_types[i]
-
+      
       ks_min <- range_df %>% filter(Assay_type == assay_type) %>% pull(min_mks)
       ks_max <- range_df %>% filter(Assay_type == assay_type) %>% pull(max_mks)
-
+      
       p <- df %>%
         filter(Assay_type == assay_type) %>%
         ggplot(., aes(x = `Median Kinase Statistic`, y = reorder(`Kinase Name`, desc(as.integer(`Rank`))))) +
@@ -214,26 +206,26 @@ render_kinase_plot <- function(df, range_df, color_type = "specificity", xax_sca
         scale_fill_brewer(palette = "Paired", na.value = brewer.pal(8, "Dark2")[c(8)], breaks = levels(df$KinaseFamilyClr)) +
         guides(fill = guide_legend(title = "Kinase Family")) +
         labs(y = "Kinase Top List")
-
+      
       if (xax_scale == "yes") {
         p <- p + xlim(ks_min, ks_max)
       }
-
+      
       p <- p + report_theme
       plotlist[[i]] <- p
     }
     pg <- plot_grid(plotlist = plotlist, labels = assay_types, nrow = 1)
   }
-
+  
   if (color_type == "specificity") {
     plotlist <- list()
-
+    
     for (i in seq_along(assay_types)) {
       assay_type <- assay_types[i]
-
+      
       ks_min <- range_df %>% filter(Assay_type == assay_type) %>% pull(min_mks)
       ks_max <- range_df %>% filter(Assay_type == assay_type) %>% pull(max_mks)
-
+      
       p <- df %>%
         filter(Assay_type == assay_type) %>%
         ggplot(., aes(x = `Median Kinase Statistic`, y = reorder(`Kinase Name`, desc(as.integer(`Rank`))))) +
@@ -247,14 +239,14 @@ render_kinase_plot <- function(df, range_df, color_type = "specificity", xax_sca
           labels = c(0, 0.65, 1) * 2
         ) +
         labs(y = "Kinase Top List")
-
-
+      
+      
       if (xax_scale == "yes") {
         p <- p + xlim(ks_min, ks_max)
       }
-
+      
       p <- p + report_theme
-
+      
       plotlist[[i]] <- p
     }
     pg <- plot_grid(plotlist = plotlist, labels = assay_types, nrow = 1)
@@ -266,18 +258,16 @@ make_kinase_plots <- function(kinase_files, color_type = "specificity", xax_scal
   # determine range of data
   range_df <- get_uka_data_range(kinase_files)
   # determine first whether study has both PTK and STK
-  assay_types <- kinase_files %>%
-    select(Assay_Type) %>%
-    unique() %>%
-    pull()
+  assay_types <- unique(kinase_files$Assay_Type)
+  
   # determine the number of unique comparisons
-  comparisons <- kinase_files %>%
-    distinct(Comparison) %>%
-    pull()
+  comparisons <- unique(kinase_files$Comparison)
+  
   # then iterate over comparisons, make table for each
   plots <- list()
   for (comparison in comparisons) {
     c_rows <- kinase_files %>% filter(Comparison == comparison)
+    
     if (length(assay_types) == 2) {
       c_ptk <- c_rows %>%
         filter(Assay_Type == "PTK") %>%
@@ -303,7 +293,7 @@ make_kinase_plots <- function(kinase_files, color_type = "specificity", xax_scal
 render_kinase_table <- function(res_table, assay_types, caption) {
   small_border <- fp_border(color = "gray", width = 1)
   header_row <- c("", assay_types)
-
+  
   if (length(assay_types) == 2) {
     header_widths <- c(1, 3, 3)
     ft <- flextable(res_table) %>%
@@ -324,7 +314,7 @@ render_kinase_table <- function(res_table, assay_types, caption) {
   ft <- ft %>%
     autofit() %>%
     theme_kin_table()
-
+  
   if (length(assay_types) == 2) {
     ft <- ft %>%
       vline(j = "PTK_Statistic", border = small_border)
@@ -341,14 +331,11 @@ render_kinase_table <- function(res_table, assay_types, caption) {
 
 make_kinase_tables <- function(kinase_files) {
   # determine first whether study has both PTK and STK
-  assay_types <- kinase_files %>%
-    select(Assay_Type) %>%
-    unique() %>%
-    pull()
+  assay_types <- unique(kinase_files$Assay_Type)
+  
   # determine the number of unique comparisons
-  comparisons <- kinase_files %>%
-    distinct(Comparison) %>%
-    pull()
+  comparisons <- unique(kinase_files$Comparison)
+  
   # then iterate over comparisons, make table for each
   fts <- list()
   for (comparison in comparisons) {
@@ -381,7 +368,7 @@ render_single_coral <- function(df, comparison, tree_dir = "99_Saved Plots", ks_
 
 get_uka_data_range <- function(kinase_files) {
   df <- bind_rows(lapply(kinase_files$UKA_file, read_uka_file))
-
+  
   df <- df %>%
     group_by(Assay_type) %>%
     summarise(max_mks = max(`Median Kinase Statistic`), min_mks = min(`Median Kinase Statistic`)) %>%
@@ -398,7 +385,7 @@ calc_crop <- function(width) {
   new_height <- round(0.65 * width)
   w_offset <- round(0.05 * width)
   crop_string <- paste0(new_width, "x", new_height, "+", w_offset)
-
+  
   return(crop_string)
 }
 
@@ -425,14 +412,10 @@ make_coral_trees <- function(kinase_files, coral_ks_thrs, coral_min, coral_max) 
   }
   
   # determine first whether study has both PTK and STK
-  assay_types <- kinase_files %>%
-    select(Assay_Type) %>%
-    unique() %>%
-    pull()
+  assay_types <- unique(kinase_files$Assay_Type)
   # determine the number of unique comparisons
-  comparisons <- kinase_files %>%
-    distinct(Comparison) %>%
-    pull()
+  comparisons <- unique(kinase_files$Comparison)
+  
   # then iterate over comparisons, make table for each
   plots <- list()
   for (comparison in comparisons) {
@@ -472,11 +455,11 @@ output_kinase_analysis <- function(kinase_files, kin_params, xax_scale, coral_ks
   if ("splots" %in% kin_params) {
     temp["splots"] <- list(make_kinase_plots(kinase_files, color_type = "specificity", xax_scale = xax_scale))
   }
-
+  
   if ("tree" %in% kin_params) {
     temp["tree"] <- list(make_coral_trees(kinase_files, coral_ks_thrs, coral_min, coral_max))
   }
-
+  
   comparisons <- kinase_files %>%
     distinct(Comparison) %>%
     pull()
