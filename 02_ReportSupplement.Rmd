@@ -395,7 +395,7 @@ if (nrow(kinase_files) > 0) {
 if (nrow(kinase_files) > 0) {
   output_kinase_analysis(kinase_files, kin_params = params$`kinase_analysis`, xax_scale = params$`xax_scale`,
                          coral_ks_thrs = params$`coral_ks_thrs`, coral_min = params$`coral_min`, 
-                         coral_max = params$`coral_max`)
+                         coral_max = params$`coral_max`, fscore_thr = params$`fscore_thr`)
 }
 
 ```

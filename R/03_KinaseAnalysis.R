@@ -361,8 +361,8 @@ make_kinase_tables <- function(kinase_files) {
 ################## KINASE CORAL TREES ###################
 #########################################################
 
-render_single_coral <- function(df, comparison, tree_dir = "99_Saved Plots", ks_min, ks_max) {
-  coral_file <- CORALcli::plot_tree(df, comparison, tree_dir = tree_dir, min_col = ks_min, max_col = ks_max)
+render_single_coral <- function(df, comparison, tree_dir = "99_Saved Plots", ks_min, ks_max, fscore_thr) {
+  coral_file <- CORALcli::plot_tree(df, comparison, tree_dir = tree_dir, min_col = ks_min, max_col = ks_max, fscore_thr = fscore_thr)
   return(coral_file)
 }
 
@@ -400,7 +400,7 @@ crop_coral_tree <- function(file_location, dimension) {
   return(png_name)
 }
 
-make_coral_trees <- function(kinase_files, coral_ks_thrs, coral_min, coral_max) {
+make_coral_trees <- function(kinase_files, coral_ks_thrs, coral_min, coral_max, fscore_thr) {
   if (coral_ks_thrs == "coral_auto"){
     # determine range of data
     range_df <- get_uka_data_range(kinase_files)
@@ -432,7 +432,7 @@ make_coral_trees <- function(kinase_files, coral_ks_thrs, coral_min, coral_max) 
       df <- c_rows %>% do(extract_coral_data(.$UKA_file, .$Assay_Type))
     }
     coral_filename <- paste0("UKA_", comparison)
-    coral_file <- render_single_coral(df, comparison = coral_filename, ks_min = ks_min, ks_max = ks_max)
+    coral_file <- render_single_coral(df, comparison = coral_filename, ks_min = ks_min, ks_max = ks_max, fscore_thr = fscore_thr)
     plot <- crop_coral_tree(coral_file, 1880)
     plots[[length(plots) + 1]] <- plot
   }
@@ -443,7 +443,7 @@ make_coral_trees <- function(kinase_files, coral_ks_thrs, coral_min, coral_max) 
 ################ KINASE ANALYSIS OUTPUT #################
 #########################################################
 
-output_kinase_analysis <- function(kinase_files, kin_params, xax_scale, coral_ks_thrs, coral_min, coral_max) {
+output_kinase_analysis <- function(kinase_files, kin_params, xax_scale, coral_ks_thrs, coral_min, coral_max, fscore_thr) {
   temp <- list()
   if ("table" %in% kin_params) {
     tables <- make_kinase_tables(kinase_files)
@@ -457,7 +457,7 @@ output_kinase_analysis <- function(kinase_files, kin_params, xax_scale, coral_ks
   }
   
   if ("tree" %in% kin_params) {
-    temp["tree"] <- list(make_coral_trees(kinase_files, coral_ks_thrs, coral_min, coral_max))
+    temp["tree"] <- list(make_coral_trees(kinase_files, coral_ks_thrs, coral_min, coral_max, fscore_thr))
   }
   
   comparisons <- kinase_files %>%
