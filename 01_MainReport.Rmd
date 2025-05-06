@@ -4,6 +4,7 @@ params:
   author: "me"
   date: "January 1st, 1970"
   qc_cv_factor: NULL
+  stk_qc_method: NULL
   signal_heatmap: NULL
   normalizations: NULL
   kinase_analysis: NULL
@@ -124,28 +125,6 @@ if (nrow(kinase_files) > 0) {
 
 ```
 
-The kinome tree overview, as well as numerical data and score plots can be found in Supplement section 2.4.
-
-\newpage
-# Report information table
-
-```{r report information table}
-data.frame("Deliverable" = c("Excel tables with all data: DATA FILES folder", "What’s in Main Report", 
-                             "What’s in Supplement", "Additional figures in folders", 
-                             "Additional information for data analysis and interpretation"),
-          "Top peptides" = c("Filenames starting with Limma or TT (=T-Test) or MTvC (Anova-Dunnett test).", 
-                             "QC assessment; Normalizations; Number of significant peptides (p < 0.05) with differential phosphorylation in Test vs Control.",
-                             "Volcano plots", "All figures in Report: Volcano plots and Heatmaps of significant peptides.", 
-                             "See Supplement end: Tools for biological interpretation, and Suggestions for validating results. Upon request, and confidential clause, not for distribution: UKA Database."),
-          "Top kinases" = c("Filenames starting with UKA.", 
-                            "Top 10 significant (Median Final score > 1.3) kinases with differential activity in Test vs Control.", "Bar plots of Top 20 kinases regardless of cut-off, coloured by family / specificity scores;  Tables of Top 10 kinases regardless of cut-off; Coral kinome trees of significant kinases.", "All figures in Report", "")
-          ) %>% flextable() %>% theme_box() %>%
-          set_table_properties(width = 1, layout = "autofit") %>%
-    fontsize(size = 11, part = "all") %>%
-    font(part = "all", fontname = "Arial") %>%
-    set_header_labels(Deliverable = "Deliverable", Top.peptides = "Top peptides", Top.kinases = "Top kinases")
-
-```
 
 \newpage
 # Conclusions

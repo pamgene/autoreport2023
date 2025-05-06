@@ -4,6 +4,7 @@ params:
   author: "me"
   date: "January 1st, 1970"
   qc_cv_factor: NULL
+  stk_qc_method: NULL
   signal_heatmap: NULL
   normalizations: NULL
   kinase_analysis: NULL
@@ -101,13 +102,21 @@ render_ref_qc_table()
 
 **Number of QC-passed phosphosites (PTK)**
 
-For the PTK Assay there is a kinetic readout, with images obtained every 5 minutes during the assay. The phosphorylation kinetics for each phosphosite (each spot) is analyzed by plotting S100 values versus the Time (cycles, in minutes). Only phosphosites that show kinetics (increase of signal in time) on at least 25 % of the arrays are included in the downstream analysis (kinetic fraction present > 0.25). 
+To select high quality phosphosites for the PTK assay, it is assessed whether peptide signals show a positive or negative trend during incubation. This is done by performing linear regression on kinetic curves. Peptides with positive trend in less than 25% of samples are excluded by default.
+
 
 \newpage
 
 **Number of QC-passed phosphosites (STK)**
 
-Phosphosite QC selection for the STK assay is performed by carrying out a nominal CV estimation. Phosphosites with a CV lower than 50% over all measured arrays are included in the downstream analysis. Values after wash (Cycle 124; for the QC phosphosites) are log2 transformed and values below 0 are removed.
+```{r, echo=FALSE, results='asis'}
+if (params$stk_qc_method == "LOD") {
+  cat("To select high quality phosphosites for the STK assay, it is assessed whether peptide signal is above the Limit of Detection (LOD). Peptides above LOD in less than 25% of samples are excluded by default. The LOD is calculated based on the signal of the prephosphorylated peptides and based on datasets with technical replicates.")
+} else if (params$stk_qc_method == "nom_cv") {
+  cat("To select high quality phosphosites for the STK assay, nominal CV is estimated on after wash (Cycle 124) values. Since high CV correlates with low signal phosphosites, phosphosites with a CV higher than 50% over all measured arrays are excluded from the analysis by default.")
+}
+```
+
 
 
 ```{r qc table}
@@ -120,35 +129,29 @@ if (nrow(qc_files) > 0) {
 }
 ```
 
-`r if (length(params$normalizations) == 0) {"\\begin{comment}"}`
+
 ### Normalizations
-`r if (length(params$normalizations) == 0) {"\\end{comment}"}`
 
-`r if (length(params$normalizations) != 1) {"\\begin{comment}"}`
-In this study, the following normalization has been applied:
-`r if (length(params$normalizations) != 1) {"\\end{comment}"}`
+```{r, echo=FALSE, results='asis'}
+if (is.null(params$normalizations)) {
+  cat("Log normalization was applied.")
+} else {
+  cat("In this study, the following normalization(s) has been applied:\n\n")
+  if ("vsn" %in% params$normalizations) {
+    cat("* Variance Stabilizing Normalization (VSN)\n\n")
+  } 
+  if ("combat" %in% params$normalizations) {
+    cat("* ComBat Correction\n\n")
+  }
+  if ("vsn" %in% params$normalizations) {
+    cat("**VSN** [@huber_variance_2002]: In log-transformed data, variance increases with decreasing signal mean. This means that a certain log fold change is more significant for high-signal phosphosites (with lower variance) than for low-signal phosphosites (high variance). VSN counteracts this effect by rendering the variance independent of the mean, thereby facilitating the discovery of significant phosphosites with low signal intensities. Another advantage is that VSN allows for the comparison of large numbers of samples, especially from multiple PamStation runs or human samples. VSN normalization has two steps. The first step is an affine transformation, which results in a shift of the y-axis to the data mean. The second step of VSN is equivalent to log transformation.\n\n")
+  }
+  if ("combat" %in% params$normalizations) {
+    cat("**ComBat correction** [@johnson_adjusting_2007; @chen_removing_2011]: ComBat is a batch effect correction method. Batch effects are systematic technical effects due to variabilities in time, place, and materials. These effects can reduce the accuracy of the results, thus they have to be counteracted. ComBat corrects for systematic biases (e.g., differences between PamStation runs, PamChips, or replicates). ComBat correction is equivalent to Z-score scaling per batch, but the scaling parameters (mean/sd) are estimated using an empirical Bayes approach, which effectively reduces the noise associated with applying the correction.\n\n")
+  }
+}
+```
 
-
-`r if (length(params$normalizations) != 2) {"\\begin{comment}"}`
-In this study, the following normalizations have been applied:
-`r if (length(params$normalizations) != 2) {"\\end{comment}"}`
-
-`r if (!"vsn" %in% params$normalizations) {"\\begin{comment}"}`
-* Variance Stabilizing Normalization (VSN)
-`r if (!"vsn" %in% params$normalizations) {"\\end{comment}"}`
-`r if (!"combat" %in% params$normalizations) {"\\begin{comment}"}`
-* ComBat Correction
-`r if (!"combat" %in% params$normalizations) {"\\end{comment}"}`
-
-`r if (!"vsn" %in% params$normalizations) {"\\begin{comment}"}`
-**VSN** @huber_variance_2002 In log transformed data, variance increases with decreasing signal mean. This means that a certain log fold change is more significant for high-signal phosphosites (with lower variance) than for low-signal phosphosites (high variance). VSN counteracts this effect by rendering the variance independent of the mean thereby facilitating the discovery of significant phosphosites with low signal intensities. Another advantage is that VSN allows for the comparison of large numbers of samples especially from multiple PamStation runs or human samples. 
-VSN normalization has two steps. The first step is an affine transformation which results in a shift of the y-axis to the data mean. The key outcome is that when comparing VSN-normalized samples among groups, it reveals the relative difference compared to the mean of all samples, not the absolute difference. For example, for a sample with an overall higher kinase activity compared to the control, VSN normalization results in kinases with both higher and lower activity compared to the data average. Thus the analysis highlights kinases with a higher contribution to the overall higher (or lower) kinase activity trend. The second step of VSN is equivalent to log transformation. 
-`r if (!"vsn" %in% params$normalizations) {"\\end{comment}"}`
-
-`r if (!"combat" %in% params$normalizations) {"\\begin{comment}"}`
-**ComBat correction** [@johnson_adjusting_2007; @chen_removing_2011] is a batch effect correction method. Batch effects are systematic technical effects due to the variabilities in time, place, and materials. These effects can reduce the accuracy of the results, thus they have to be counteracted. ComBat corrects for systematic biases (e.g., differences between PamStation runs, PamChips or replicates). ComBat correction is equivalent to Z-score scaling per batch but the scaling parameters (mean / sd) are estimated using an empirical Bayes approach which effectively reduces the noise associated with applying the correction.
-
-`r if (!"combat" %in% params$normalizations) {"\\end{comment}"}`
 
 `r if (params$signal_heatmap != "yes") {"\\begin{comment}"}`
 ### Visual assessment of overall signal
@@ -198,25 +201,29 @@ if (nrow(stats_files) > 0) {
 }
 ```
 
-`r if (!"MTvC" %in% stats_files$Stats) {"\\begin{comment}"}`
-* Multiple Test conditions versus Control (MTvC): To compare 2 or more Test Conditions versus Control. An ANOVA is performed for significant effects anywhere between the Test Conditions (including control). A Dunnett’s post-hoc test is then performed for multiple comparisons to find significant effects between each Test Condition.
-`r if (!"MTvC" %in% stats_files$Stats) {"\\end{comment}"}`
 
-
-`r if (!"TT" %in% stats_files$Stats) {"\\begin{comment}"}`
-* T-test (TT): To compare one Test Condition versus Control, two-sided Student’s T-test (paired or unpaired) are performed.
-`r if (!"TT" %in% stats_files$Stats) {"\\end{comment}"}`
-
-`r if (!"Limma" %in% stats_files$Stats) {"\\begin{comment}"}`
-* LIMMA (Linear Models for Micro Arrays): LIMMA, instead of analyzing each peptide in isolation, uses information from all the peptides and conditions in the experiment to improve its analysis. Applying LIMMA leads to results with increased statistical power over individual testing per peptide. 
-`r if (!"Limma" %in% stats_files$Stats) {"\\end{comment}"}`
+```{r, echo=FALSE, results='asis'}
+if ("MTvC" %in% stats_files$Stats) {
+  cat("* Multiple Test conditions versus Control (MTvC): To compare 2 or more Test Conditions versus Control. An ANOVA is performed for significant effects anywhere between the Test Conditions (including control). A Dunnett’s post-hoc test is then performed for multiple comparisons to find significant effects between each Test Condition.\n\n")
+}
+if ("TT" %in% stats_files$Stats) {
+  cat("* T-test (TT): To compare one Test Condition versus Control, two-sided Student’s T-test (paired or unpaired) are performed.\n\n")
+}
+if ("Limma" %in% stats_files$Stats) {
+  cat("* LIMMA (Linear Models for Micro Arrays): LIMMA, instead of analyzing each peptide in isolation, uses information from all the peptides and conditions in the experiment to improve its analysis. Applying LIMMA leads to results with increased statistical power over individual testing per peptide.\n\n")
+}
+```
 
 The following plot(s) show the results from the statistical tests:
 
 * Volcano plot, useful for an overview of the Test condition vs control. Volcano plots visualize the significance (y-axis, -log10(p value)) versus the effect size (x-axis, LFC or delta) of each test. Red dots are phosphosites that show significant difference compared to control (p<0.05, i.e. -log10(p)>1.3).
-`r if ("heatmap" %in% params$normalizations) {"\\begin{comment}"}`
-* Significant phosphosites (LFC or Scaled heatmaps) – provided separately.
-`r if ("heatmap" %in% params$normalizations) {"\\end{comment}"}`
+
+```{r, echo=FALSE, results='asis'}
+if ("heatmap" %in% params$normalizations) {
+  cat("* Significant phosphosites (LFC or Scaled heatmaps) - provided separately.\n\n")
+}
+```
+
 
 Results from the above tests are provided in Excel-readable format. 
 The phosphosite level statistical tests result in LFC and p-values for each Peptide sequence. Each sequence can have a > 90% similarity match with 1 or more proteins. Therefore the Report results folder contains additional [*_enriched.csv] files that contain annotation of Sequence, UniPROT ID and Primary Gene name. This is useful for biological interpretation or pathway and network analyses. The LFC and p-values are the same for each unique Peptide ID across the different matching proteins.
@@ -225,8 +232,6 @@ The phosphosite level statistical tests result in LFC and p-values for each Pept
 \newpage
 ### Volcano plots
 
-
-`r if (!"MTvC" %in% stats_files$Stats) {"\\begin{comment}"}`
 ```{r mtvcvolcanos, fig.cap = paste("MTvC Volcano Plots", if(nrow(stats_files) > 0) {stats_files %>% filter(Stats == "MTvC") %>% pull(Group)}), dpi=150, fig.height=3 * length(assay_types)}
 
 if(nrow(stats_files) > 0) {
@@ -257,11 +262,8 @@ if (nrow(stats_files) > 0) {
 }
 
 ```
-`r if (!"MTvC" %in% stats_files$Stats) {"\\end{comment}"}`
 
 
-
-`r if (!"TT" %in% stats_files$Stats) {"\\begin{comment}"}`
 
 ```{r ttvolcanos, fig.cap = paste("T-Test Volcano Plots", if (nrow(stats_files) > 0) {stats_files %>% filter(Stats == "TT") %>% pull(Comparison)}), dpi=150, fig.width=2.5 * length(assay_types), fig.height=3}
 
@@ -296,9 +298,7 @@ if (nrow(stats_files) > 0) {
 
 ```
 
-`r if (!"TT" %in% stats_files$Stats) {"\\end{comment}"}`
 
-`r if (!"Limma" %in% stats_files$Stats) {"\\begin{comment}"}`
 
 ```{r limmavolcanos, fig.cap = paste("Limma Volcano Plots", if(nrow(stats_files) > 0) {stats_files %>% filter(Stats == "Limma") %>% pull(Group)}), dpi=200, fig.width=6, fig.height=8.5}
 
@@ -322,7 +322,7 @@ if (nrow(stats_files) > 0) {
   }
 }
 ```
-`r if (!"Limma" %in% stats_files$Stats) {"\\end{comment}"}`
+
 
 \newpage
 
@@ -400,7 +400,28 @@ if (nrow(kinase_files) > 0) {
 
 ```
 
+\newpage
+# Report information table
 
+```{r report information table}
+data.frame("Deliverable" = c("Excel tables with all data: DATA FILES folder", "What’s in Main Report", 
+                             "What’s in Supplement", "Additional figures in folders", 
+                             "Additional information for data analysis and interpretation"),
+          "Top peptides" = c("Filenames starting with Limma or TT (=T-Test) or MTvC (Anova-Dunnett test).", 
+                             "QC assessment; Normalizations; Number of significant peptides (p < 0.05) with differential phosphorylation in Test vs Control.",
+                             "Volcano plots", "All figures in Report: Volcano plots and Heatmaps of significant peptides.", 
+                             "See Supplement end: Tools for biological interpretation, and Suggestions for validating results. Upon request, and confidential clause, not for distribution: UKA Database."),
+          "Top kinases" = c("Filenames starting with UKA.", 
+                            "Top 10 significant (Median Final score > 1.3) kinases with differential activity in Test vs Control.", "Bar plots of Top 20 kinases regardless of cut-off, coloured by family / specificity scores;  Tables of Top 10 kinases regardless of cut-off; Coral kinome trees of significant kinases.", "All figures in Report", "")
+          ) %>% flextable() %>% theme_box() %>%
+          set_table_properties(width = 1, layout = "autofit") %>%
+    fontsize(size = 11, part = "all") %>%
+    font(part = "all", fontname = "Arial") %>%
+    set_header_labels(Deliverable = "Deliverable", Top.peptides = "Top peptides", Top.kinases = "Top kinases")
+
+```
+
+\newpage
 # Tools for biological interpretation
 
 For biological interpretation, we provide information here about pathway and network analysis tools. Refer to the Results Data Tables provided separately.
@@ -435,7 +456,7 @@ The [Protein Atlas](https://www.proteinatlas.org/) is useful to verify biologica
 To overlap the top hits across different comparisons (e.g. T1 vs C, T2 vs C, etc.) you can use [Venny](https://bioinfogp.cnb.csic.es/tools/venny/).
 
 
-
+\newpage
 # Suggestions for validating results
 
 To validate results, we recommend selecting kinases that consistently appear with high Final and Specificity Scores in experiments carried out with at least 3 or 6 replicates per condition for cell lines or primary cell cultures respectively.

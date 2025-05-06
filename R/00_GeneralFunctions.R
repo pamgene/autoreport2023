@@ -132,10 +132,10 @@ process_ukat_ukam <- function(folder){
 }
 
 
-process_uka_allvsall <- function(files, folder) {
+process_uka_allvsall <- function(files, folder, counter = 0) {
   # To process UKA files from UKA_app that gives a Sgroup_contrast column
   files_to_process <- files
-
+  
   for (f in files_to_process) {
     uka <- read_delim(f, show_col_types = FALSE) %>% clean_tercen_columns()
     # write this cleaned version to the output of 99_Saved_plots
@@ -151,8 +151,7 @@ process_uka_allvsall <- function(files, folder) {
     split_uka <- split(uka, uka[, 'Comparison'])
     split_uka_clean <- lapply(split_uka, clean_tercen_columns)
     
-    # Initialize counter for each file
-    counter <- 0
+    
     
     # Save each split file
     for (x in names(split_uka_clean)) {

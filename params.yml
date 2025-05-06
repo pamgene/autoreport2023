@@ -13,3 +13,4 @@ coral_ks_thr: 'coral_auto'
 coral_min: -3
 coral_max: 3
 datatype: bionav
+stk_qc_method: 'LOD'

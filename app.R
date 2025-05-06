@@ -23,6 +23,8 @@ ui <- fluidPage(
                 dateInput("date", "Report Date"),
                 textAreaInput("aim", "Project Aim", rows = 3),
                 textAreaInput("comparisons", "Experiment Comparisons", rows = 3),
+                radioButtons(
+                  "stk_qc_method", "STK QC method", choices = c("LOD" = "LOD", "Nominal CV" = "nom_cv")),
                 checkboxGroupInput("normalizations", "Normalizations", choices = c("VSN" = "vsn", "ComBat Correction" = "combat")),
                 textInput("qc_cv_factor", "Factor Used for CV Calculation"),
                 radioButtons("signal_heatmap", "Include Overall Signal Heatmap Text", choices = c("Yes" = "yes", "No" = "no")),
@@ -96,11 +98,12 @@ server <- function(input, output, session) {
     updateTextAreaInput(session, "aim", value = params_list$aim)
     updateTextAreaInput(session, "comparisons", value = params_list$comparisons)
     updateCheckboxGroupInput(session, "normalizations", selected = params_list$normalizations)
+    updateRadioButtons(session, 'stk_qc_method', selected = params_list$`stk_qc_method`)
     updateTextInput(session, "qc_cv_factor", value = params_list$`qc_cv_factor`)
     updateCheckboxGroupInput(session, "heatmap", selected = ifelse(is.null(params_list$`phosphosite_heatmap`), character(0), "heatmap"))
     #updateCheckboxGroupInput(session, "kinase_analysis", selected = params_list$`kinase_analysis`)
-    updateRadioButtons(session, 'coral_ks_thrs', selected = param_list$`coral_ks_thrs`)
-    updateNumericInput(session, "fscore_thr", selected = param_list$`fscore_thr`)
+    updateRadioButtons(session, 'coral_ks_thrs', selected = params_list$`coral_ks_thrs`)
+    updateNumericInput(session, "fscore_thr", selected = params_list$`fscore_thr`)
     updateRadioButtons(session, "datatype", selected = params_list$datatype)
   }
 
@@ -111,6 +114,7 @@ server <- function(input, output, session) {
             "aim" = input$aim,
             "comparisons" = input$comparisons,
             "normalizations" = input$normalizations,
+            "stk_qc_method" = input$`stk_qc_method`,
             "qc_cv_factor" = input$`qc_cv_factor`,
             "signal_heatmap" = input$`signal_heatmap`,
             "phosphosite_heatmap" = input$heatmap,
@@ -191,8 +195,13 @@ server <- function(input, output, session) {
     }
     
     kinase_table <- read_kinase_dir()
-    write_csv(kinase_table, file = "temp/kinase_files.csv")
-    output$`kinase_table` <- renderTable(kinase_table)
+    
+    if (nrow(kinase_table) > 0) {
+      write_csv(kinase_table, file = "temp/kinase_files.csv")
+      output$`kinase_table` <- renderTable(kinase_table)
+    } else {
+      write_csv(data.frame(), file = "temp/kinase_files.csv")
+    }
     
     
   })
