@@ -8,8 +8,16 @@ if (!dir.exists("temp")){
   dir.create("temp")
 }
 
-rmarkdown::render("01_MainReport.Rmd", params = yaml::read_yaml("./params.yml"))
-rmarkdown::render("02_ReportSupplement.Rmd", params = yaml::read_yaml("./params.yml"))
+date_str <- format(Sys.Date(), "%y%m%d")
+main_report_file <- paste0("01_MainReport_", date_str, ".docx")
+supplement_file <- paste0("02_ReportSupplement_", date_str, ".docx")
+
+rmarkdown::render("01_MainReport.Rmd", 
+                  params = yaml::read_yaml("./params.yml"),
+                  output_file = main_report_file)
+rmarkdown::render("02_ReportSupplement.Rmd", 
+                  params = yaml::read_yaml("./params.yml"),
+                  output_file = supplement_file)
 
 unlink("temp", recursive = TRUE)
 

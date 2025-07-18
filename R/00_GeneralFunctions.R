@@ -138,8 +138,12 @@ process_uka_allvsall <- function(files, folder, counter = 0) {
   
   for (f in files_to_process) {
     uka <- read_delim(f, show_col_types = FALSE) %>% clean_tercen_columns()
+    uka_important_cols <- uka %>% 
+      select(Supergroup,	contrast,	Sgroup_contrast,	`Kinase Name`,	`Kinase Uniprot ID`,	`Kinase Group`,	`Kinase Family`, `Median Final score`, `Mean Significance Score`,	`Mean Specificity Score`,	`Median Kinase Statistic`, `Mean peptide set size`)
     # write this cleaned version to the output of 99_Saved_plots
-    write_csv(uka, paste0("99_Saved Plots/", basename(f) ))
+    write_csv(uka, paste0("99_Saved Plots/", tools::file_path_sans_ext(basename(f)), "_all_columns.", tools::file_ext(f)))
+    write_csv(uka_important_cols, paste0("99_Saved Plots/", basename(f) ))
+
     if ("Sgroup_contrast" %in% colnames(uka)) {
       uka <- uka %>% dplyr::rename('Comparison' = 'Sgroup_contrast')
     }

@@ -191,7 +191,7 @@ parse_mtvc <- function(stats_files, datatype, assay_types){
     distinct(Group) %>%
     pull()
   if (!is.na(groups)) {
-    # Multiple MTvCs
+    # Multiple MTvC
     for (group in groups) {
       group_rows <- mtvc_rows %>% filter(Group == group)
       if (datatype == "bionav") {
@@ -475,12 +475,13 @@ make_report_table_stats <- function(res_table, caption) {
   }
   ft %>%
     stats_footnotes(., res_table = res_table) %>%
+    theme_box() %>%
     fontsize(size = 9, part = "footer") %>%
     font(part = "all", fontname = "Arial") %>%
-    bold(bold = TRUE, part = "header") %>%
-    bold(bold = TRUE, j = "comparison") %>%
-    theme_box() %>%
-    align(align = "center", part = "all") %>%
+    bold(bold = TRUE, part = "header") %>%                # bold header row
+    # bold(bold = TRUE, j = "comparison", part = "body") %>% # bold first column
+    align(align = "center", part = "all") %>% # center everything
+    align(align = "center", part = "header") %>%
     set_table_properties(width = 1, layout = "autofit") %>%
     set_caption(caption)
 }
@@ -549,25 +550,12 @@ render_volcano_plot <- function(df, lfc_range, p_range) {
       mutate(Comparison = "Comparison")
   }
   
-  num_levels <- as.factor(df$Comparison) %>% nlevels()
-  # Function to calculate a reasonable layout
-  calculate_layout <- function(num_levels) {
-    if (num_levels <= 3) {
-      return(list(ncol = num_levels, nrow = 1))
-    } else if (num_levels <= 6) {
-      return(list(ncol = 3, nrow = 2))
-    } else {
-      return(list(ncol = 3, nrow = ceiling(num_levels / 3)))
-    }
-  } 
-  layout <- calculate_layout(num_levels)
-  
   p <- ggplot(df, aes(x = LogFC, y = -log10(P))) +
     geom_point(aes(color = ifelse(P < 0.05 & abs(LogFC) > 0, "Significant", "Not Significant")), 
                size = 1.5) +
     scale_color_manual(values = c("black", "red3")) +
     geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") +
-    facet_wrap(~Comparison, ncol = layout$ncol, nrow = layout$nrow, scales = "free") +
+    facet_wrap(~Comparison, ncol = 3, nrow = ceiling(nlevels(as.factor(df$Comparison)) / 3), scales = "free") +
     theme_minimal() +
     theme(
       legend.position = "none",
@@ -576,12 +564,9 @@ render_volcano_plot <- function(df, lfc_range, p_range) {
     ) +
     labs(x = "LogFC", y = "-log10(P-value)") +
     xlim(lfc_range) +
-    ylim(p_range)+
+    ylim(p_range) +
     report_theme +
     theme(legend.position = "none")
-  
-  
-  
   return(p)
 }
 
@@ -626,10 +611,29 @@ make_volcano_plots <- function(stats_files, stats_type = "MTvC", datatype = "bio
   
   # Function to create and save plots
   create_plot <- function(df, group, assay_type = NULL) {
-    p <- render_volcano_plot(df, stats_range$lfc, stats_range$p)
-    filename <- paste0("99_Saved Plots/", stats_type, "_", group, if (!is.null(assay_type)) paste0("_", assay_type), "_Volcano.pdf")
-    save_plot(filename, p, dpi = 00)
-    p
+    num_levels <- nlevels(as.factor(df$Comparison))
+    max_per_plot <- 12
+    if (num_levels > max_per_plot) {
+      all_levels <- levels(as.factor(df$Comparison))
+      nplots <- ceiling(num_levels / max_per_plot)
+      plot_list <- list()
+      for (i in seq_len(nplots)) {
+        idx_start <- (i - 1) * max_per_plot + 1
+        idx_end <- min(i * max_per_plot, num_levels)
+        these_levels <- all_levels[idx_start:idx_end]
+        df_sub <- df %>% filter(Comparison %in% these_levels)
+        p <- render_volcano_plot(df_sub, stats_range$lfc, stats_range$p)
+        filename <- paste0("99_Saved Plots/", stats_type, "_", group, if (!is.null(assay_type)) paste0("_", assay_type), "_Volcano_batch_", i, ".png")
+        ggsave(filename, p, width = 8.27, height = 11.69, units = "in", dpi = 300)
+        plot_list[[i]] <- p
+      }
+      return(plot_list)
+    } else {
+      p <- render_volcano_plot(df, stats_range$lfc, stats_range$p)
+      filename <- paste0("99_Saved Plots/", stats_type, "_", group, if (!is.null(assay_type)) paste0("_", assay_type), "_Volcano.png")
+      ggsave(filename, p, width = 8.27, height = 11.69, units = "in", dpi = 300)
+      return(p)
+    }
   }
   
   # Generate plots based on assay types
@@ -945,4 +949,33 @@ extract_phosphosite_data_mtvc_bionav <- function(lfc_file, p_file, assay_type) {
   
   return(dfs)
 }
+      
+#       if (suppressWarnings(is.na(any(df$LogFC)))) {
+#         ctrl_title <- title
+#       }
+#     }
+#   }
+#   
+#   for (title in split_titles[5:length(split_titles)]) {
+#     if ((title != ctrl_title) & (title != "")) {
+#       df <- logfc %>% select(ID, title)
+#       df$pvalue <- pvalues %>%
+#         select(title) %>%
+#         pull()
+#       colnames(df) <- c("ID", "LogFC", "P")
+#       df$LogFC <- as.numeric(df$LogFC)
+#       df$P <- as.numeric(df$P)
+#       
+#       comparison <- paste(title, "vs", ctrl_title)
+#       df$Comparison <- comparison
+#       dfs[[length(dfs) + 1]] <- df
+#     }
+#   }
+#   
+#   dfs <- bind_rows(dfs)
+#   dfs$Comparison <- as.factor(dfs$Comparison)
+#   dfs$Assay_type <- assay_type
+#   
+#   return(dfs)
+# }
 

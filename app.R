@@ -154,9 +154,14 @@ server <- function(input, output, session) {
   }
 
   make_report_zip <- function() {
-    file_name <- paste0(format(input$date, "%y%m%d"), "_Report.zip")
-    zip_contents <- c("01_MainReport.docx", "02_ReportSupplement.docx", 
-                      "99_Saved Plots/", "params.yml")
+    date_str <- format(input$date, "%y%m%d")
+    file_name <- paste0(date_str, "_Report.zip")
+    zip_contents <- c(
+      paste0("01_MainReport_", date_str, ".docx"),
+      paste0("02_ReportSupplement_", date_str, ".docx"),
+      "99_Saved Plots/",
+      "params.yml"
+    )
     zip(paste0("output/", file_name), zip_contents)
     return(file_name)
   }
@@ -249,7 +254,6 @@ server <- function(input, output, session) {
         filename = function() {
           paste0(format(input$date, "%y%m%d"), "_Report.zip")
         },
-
         content <- function(file) {
           file.copy(paste0("output/", format(input$date, "%y%m%d"), "_Report.zip"), file)
         }
