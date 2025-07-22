@@ -113,7 +113,7 @@ Corresponding volcano plots can be found in Supplement section 2.3.
 
 ## Upstream Kinase Analysis (UKA)
 
-Kinases phosphorylate multiple phosphosites on the PamChip. To address which kinases are responsible for the phosphorylation differences between conditions, we perform Upstream Kinase Analysis (UKA), explained in Supplement section 2.4. The UKA predicts potential kinases by examining changes in their associated phosphosite sets. These phosphosite sets are derived from publicly available databases of kinase-protein-phosphosite relationships. For further details of the algorithm and explanation of the sdcores, refer to Supplement 2.4.
+Kinases phosphorylate multiple phosphosites on the PamChip. To address which kinases are responsible for the phosphorylation differences between conditions, we perform Upstream Kinase Analysis (UKA). The UKA predicts potential kinases by examining changes in their associated phosphosite sets. The phosphosite sets are derived from publicly available databases of kinase-protein-phosphosite relationships. For the details of the algorithm, explanation of the scores and further visualizations (kinome trees), refer to Supplement 2.4.
 
 ### Top kinases table
 

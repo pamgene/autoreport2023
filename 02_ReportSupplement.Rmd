@@ -146,7 +146,7 @@ if (is.null(params$normalizations)) {
   if ("vsn" %in% params$normalizations) {
     cat("**VSN** [@huber_variance_2002]: In log-transformed data, variance increases with decreasing signal mean. This means that a certain log fold change is more significant for high-signal phosphosites (low variance) than for low-signal phosphosites (high variance). VSN adresses this by rendering the variance independent of the mean, thereby facilitating the discovery of significant phosphosites with low signal intensities. It also enables comparison of large sample sets, e.g. multiple PamStation runs. 
     VSN normalization has two steps:\n
-1. Affine transformation – centers and scales the data. This results in comparisons based on relative changes - deviations from the overal mean - rather than absolute values. For example, in a sample with higher overal kinase activity, VSN identifies kinases with above- and below-average activity, emphasizing key drivers.\n
+1. Affine transformation – centers and scales the data. This results in comparisons based on relative changes - deviations from the overal mean - rather than absolute values. For example, in a sample with higher overal kinase activity than control, VSN transformation results in kinases with above- and below-average activity. In a volcano-plot this shows significant peptides with both negative and positive fold change, with the most positive indicating key drivers.\n
 2. Log transformation (log-equivalent transformation).\n\n")
   }
   if ("combat" %in% params$normalizations) {
@@ -345,8 +345,6 @@ The UKA algorithm returns the following scores:
 
 * **Kinase Score (Median Final Score)**: the sum of the Significance Score and the Specificity Score. Kinases are ordered by this score. 
 
-To learn more about the calculation of these scores, refer to: https://pamgene.com/wp-content/uploads/2024/08/Flyer_PamGene-Upstream-Kinase-Analysis-Tool.pdf
-
 
 ```{r include=any(c("splotf", "splots", "table", "tree") %in% params$kinase_analysis), results ='asis'}
 cat("The UKA algorithm generates the following plots:")
@@ -361,25 +359,24 @@ cat("* **Kinase Score Plot**, useful to identify the effect size and direction o
 ```
 
 ```{r include= "tree" %in% params$kinase_analysis, results='asis'}
-cat("* **Kinome Tree**, useful to group the kinases into phylogenetic families. The Coral Trees show all kinases above the default threshold (Kinase Score > 1.3). 
-You can also generate and fine tune your own Coral Trees [here](http://phanstiel-lab.med.unc.edu/CORAL/).")
+cat("* **Kinome Tree**, useful to group the kinases into phylogenetic families. The Coral Trees show all kinases above Kinase Score > ", params$fscore_thr, ". You can also generate and fine tune your own [Coral Trees](http://phanstiel-lab.med.unc.edu/CORAL/).")
 ```
 
-Results are provided as Excel (csv) files (Data tables/UKA_PTK or UKA_STK). The column Median Final Score (= Kinase Score) is used for the ranking, thus enabling selection of kinases above the default threshold (Kinase Score > 1.3).
-For more details of this algorithm  refer to: https://pamgene.com/ps12/. 
+Results are provided as Excel (csv) files (Data tables/UKA_PTK or UKA_STK). The column Median Final Score (= Kinase Score) is used for the ranking, thus enabling selection of kinases above the default threshold (Kinase Score > 1.3) or a stricter threshold.
+For more details of the algorithm and the scores, refer to the [UKA Flyer](https://pamgene.com/wp-content/uploads/2024/08/Flyer_PamGene-Upstream-Kinase-Analysis-Tool.pdf). 
 
 A general guideline below can be used to infer biological interpretation from the UKA results. PamGene can support and discuss these approaches.
 
 1. Use the UKA tool to give a ranked predicted list of kinases
 2. Select top kinase(s) based on:
     + Ranking order
-    + Threshold cut-off (subjective; guideline is to use Median Final score > 1.3)
+    + Threshold cut-off (depends on research question; guideline is to minimally use Median Final score > 1.3 which is equivalent to p-value < 0.05.)
     + Known biological information
 3. Further validate the selected kinase based on:
     + Biological context inferred from current knowledgebase and literature
     + Other platforms and technologies
   
-More details of this algorithm are available on request. Results are provided as Excel (txt) files. 
+Results are provided as Excel (txt) files. 
 
 \newpage
 ### Kinase Analysis Results
@@ -431,9 +428,9 @@ data.frame("Deliverable" = c("Excel tables with all data: DATA FILES folder", "W
 For biological interpretation, we provide information here about pathway and network analysis tools. Refer to the Results Data Tables provided separately.
 For a specific comparison you can use:
 
-1. Phosphosite level data: we suggest to combine the PTK and STK significant results from the TT or MTvC. Use the proteins mapped to phosphosites (in the “_enriched” files). Since multiple phosphosites can map to one protein, we suggest to use the mean. (Significant phosphosites: p value<0.05; or set your own more/ less stringent cut-off). Effect direction and size: Use LFC / delta. 
+1. Phosphosite level data: we suggest to combine the PTK and STK significant results. Use the proteins mapped to phosphosites (in the “_enriched” files). Since multiple phosphosites can map to one protein, we suggest to use the mean fold change. (Significant phosphosites: p value<0.05; or set your own more/ less stringent cut-off). 
 
-2. Kinase level data: We suggest to combine the UKA_PTK and UKA_STK significant kinases (Median Final score >1.3; or set your own more/ less stringent cut-off). Effect direction and size: Use Median Kinase Statistic. 
+2. Kinase level data: We suggest to combine the PTK and STK significant kinases (Median Final score >1.3; or set your own more/ less stringent cut-off). Effect direction and size: Use Median Kinase Statistic. 
 
 3. Combine (1) and (2) into one table, with a column for ID (e.g. Gene name or UniprotID), and a column for the LFC values (from (1)=LFC; From (2)=Median Kinase Statistic) and save as a txt file. When there is an overlap between kinases and the proteins mapped to phosphosites, we suggest to use kinase data. 
 An example dataset of significant proteins and kinases:
@@ -454,6 +451,7 @@ Pathway and network analysis tools:
 | [G-Profiler](https://biit.cs.ut.ee/gprofiler/gost) | ID         | Pathway analyis tool.                                                                  |
 | [EnrichR](https://maayanlab.cloud/Enrichr/)        | ID         | Pathway analyis tool.                                                                  |
 | [STRING](https://string-db.org/)                   | ID         | Network analysis tool.                                                                 |
+| [Lomics](https://lomics.ai/)                       | Research question | AI-based tool that gives potential pathways and pathway members upon a question.  |
 
 The [Protein Atlas](https://www.proteinatlas.org/) is useful to verify biological context of a kinase hit. (E.g.: is LCK expressed in endothelial cells?)
 
