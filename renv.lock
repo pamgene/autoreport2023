@@ -27,14 +27,14 @@
     },
     "CORALcli": {
       "Package": "CORALcli",
-      "Version": "0.2.0",
+      "Version": "0.2.2",
       "Source": "GitHub",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
       "RemoteRepo": "CORALcli",
       "RemoteUsername": "pamgene",
-      "RemoteRef": "0.2.0",
-      "RemoteSha": "ca7becb0b2fc5afcb84e0209ce87b75f1f0118e9"
+      "RemoteRef": "0.2.2",
+      "RemoteSha": "6d611ff50389cbc70853f34880b6393977f57515"
     },
     "Cairo": {
       "Package": "Cairo",

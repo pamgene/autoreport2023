@@ -8,8 +8,11 @@ params:
   signal_heatmap: NULL
   normalizations: NULL
   kinase_analysis: NULL
+  kinase_analysis_old: NULL
   score_plot_color: NULL
   fscore_thr: NULL
+  spec_thr: NULL
+  csUKA: NULL
   coral_ks_thrs: NULL
   coral_min: NULL
   coral_max: NULL
@@ -213,7 +216,7 @@ if ("TT" %in% stats_files$Stats) {
   cat("* T-test (TT): To compare one Test Condition versus Control, two-sided Student’s T-test (paired or unpaired) are performed.\n\n")
 }
 if ("Limma" %in% stats_files$Stats) {
-  cat("* LIMMA (Linear Models for Micro Arrays): LIMMA, instead of analyzing each peptide in isolation, uses information from all the peptides and conditions in the experiment to improve its analysis. Applying LIMMA leads to results with increased statistical power over individual testing per peptide.\n\n")
+  cat("* LIMMA (Linear Models for Micro Arrays): LIMMA, instead of analyzing each peptide in isolation, uses information from all the peptides and conditions in the experiment to improve its analysis. Applying LIMMA leads to results with increased statistical power over individual testing per peptide. Use the False Discovery Rate (FDR) column to set a stricter threshold on your results if desired. FDR is calculated with the Benjamini-Hochberg method. \n\n")
 }
 ```
 
@@ -229,7 +232,7 @@ if ("heatmap" %in% params$normalizations) {
 
 
 Results from the above tests are provided in Excel-readable format. 
-The phosphosite level statistical tests result in LFC and p-values for each Peptide sequence. Each sequence can have a > 90% similarity match with 1 or more proteins. Therefore the Report results folder contains additional [*_enriched.csv] files that contain annotation of Sequence, UniPROT ID and Primary Gene name. This is useful for biological interpretation or pathway and network analyses. The LFC and p-values are the same for each unique Peptide ID across the different matching proteins.
+The phosphosite level statistical tests result in LFC and p-values for each Peptide sequence. Each sequence can have a > 90% similarity match with 1 or more proteins. Therefore the Report results folder contains additional [*_enriched.csv] files in the 02_DATA folder that contain annotation of Sequence, UniPROT ID and Primary Gene name. This is useful for biological interpretation or pathway and network analyses. The LFC and p-values are the same for each unique Peptide ID across the different matching proteins.
 
 
 \newpage
@@ -346,23 +349,23 @@ The UKA algorithm returns the following scores:
 * **Kinase Score (Median Final Score)**: the sum of the Significance Score and the Specificity Score. Kinases are ordered by this score. 
 
 
-```{r include=any(c("splotf", "splots", "table", "tree") %in% params$kinase_analysis), results ='asis'}
+```{r include=any(c("splotf", "splots", "table", "tree") %in% c(params$kinase_analysis, params$kinase_analysis_old)), results ='asis'}
 cat("The UKA algorithm generates the following plots:")
 ```
 
-```{r include="table" %in% params$kinase_analysis, results='asis'}
+```{r include="table" %in% c(params$kinase_analysis, params$kinase_analysis_old), results='asis'}
 cat("* **Kinase Score Table**, useful to identify the top kinases. The Score Table shows the top 10 kinases regardless of the Kinase Scores.")
 ```
 
-```{r include= any(c("splotf", "splots") %in% params$kinase_analysis), results='asis'}
+```{r include= any(c("splotf", "splots") %in% c(params$kinase_analysis, params$kinase_analysis_old)), results='asis'}
 cat("* **Kinase Score Plot**, useful to identify the effect size and direction of the top 20 kinases. Plots are colored by Specificity Score or kinase family. When a kinase family is represented by only 1 kinase from the Top 20 list, the bars are coloured grey. The Score Plots show the top 20 kinases, regardless of the Kinase Scores.")
 ```
 
-```{r include= "tree" %in% params$kinase_analysis, results='asis'}
-cat("* **Kinome Tree**, useful to group the kinases into phylogenetic families. The Coral Trees show all kinases above Kinase Score > ", params$fscore_thr, ". You can also generate and fine tune your own [Coral Trees](http://phanstiel-lab.med.unc.edu/CORAL/).")
+```{r include= "tree" %in% c(params$kinase_analysis, params$kinase_analysis_old), results='asis'}
+cat("* **Kinome Tree**, useful to group the kinases into phylogenetic families. The Coral Trees show all kinases above Kinase Score > ", params$fscore_thr, " and ", if(params$csUKA) "Specificity Score" else "Mean Specificity Score", " > ", params$spec_thr, ". You can also generate and fine tune your own [Coral Trees](http://phanstiel-lab.med.unc.edu/CORAL/).")
 ```
 
-Results are provided as Excel (csv) files (Data tables/UKA_PTK or UKA_STK). The column Median Final Score (= Kinase Score) is used for the ranking, thus enabling selection of kinases above the default threshold (Kinase Score > 1.3) or a stricter threshold.
+Results are provided as Excel (csv) files (Data tables/UKA_PTK or UKA_STK). The column `r if(params$csUKA) "Final Score" else "Median Final Score"` (= Kinase Score) is used for the ranking, thus enabling selection of kinases above the default threshold (Kinase Score > 1.3) or a stricter threshold.
 For more details of the algorithm and the scores, refer to the [UKA Flyer](https://pamgene.com/wp-content/uploads/2024/08/Flyer_PamGene-Upstream-Kinase-Analysis-Tool.pdf). 
 
 A general guideline below can be used to infer biological interpretation from the UKA results. PamGene can support and discuss these approaches.
@@ -370,7 +373,7 @@ A general guideline below can be used to infer biological interpretation from th
 1. Use the UKA tool to give a ranked predicted list of kinases
 2. Select top kinase(s) based on:
     + Ranking order
-    + Threshold cut-off (depends on research question; guideline is to minimally use Median Final score > 1.3 which is equivalent to p-value < 0.05.)
+    + Threshold cut-off (depends on research question; guideline is to minimally use `r if(params$csUKA) "Final Score" else "Median Final Score"` > 1.3 which is equivalent to p-value < 0.05.)
     + Known biological information
 3. Further validate the selected kinase based on:
     + Biological context inferred from current knowledgebase and literature
@@ -392,9 +395,12 @@ if (nrow(kinase_files) > 0) {
 
 ```{r kinasetables, echo=FALSE, results='asis', dpi=150, fig.width=3 * length(assay_types)+.5, fig.height=4}
 if (nrow(kinase_files) > 0) {
-  output_kinase_analysis(kinase_files, kin_params = params$`kinase_analysis`, xax_scale = params$`xax_scale`,
+  # Combine both checkbox groups for kinase analysis parameters
+  combined_kinase_params <- c(params$kinase_analysis, params$kinase_analysis_old)
+  
+  output_kinase_analysis(kinase_files, kin_params = combined_kinase_params, xax_scale = params$`xax_scale`,
                          coral_ks_thrs = params$`coral_ks_thrs`, coral_min = params$`coral_min`, 
-                         coral_max = params$`coral_max`, fscore_thr = params$`fscore_thr`)
+                         coral_max = params$`coral_max`, fscore_thr = params$`fscore_thr`, spec_thr = params$`spec_thr`, csUKA = params$csUKA)
 }
 
 ```
@@ -411,7 +417,7 @@ data.frame("Deliverable" = c("Excel tables with all data: DATA FILES folder", "W
                              "Volcano plots", "All figures in Report: Volcano plots and Heatmaps of significant peptides.", 
                              "See Supplement end: Tools for biological interpretation, and Suggestions for validating results. Upon request, and confidential clause, not for distribution: UKA Database."),
           "Top kinases" = c("Filenames starting with UKA.", 
-                            paste0("Top 10 significant (Median Final score > ", params$fscore_thr, ") kinases with differential activity in Test vs Control."), 
+                            paste0("Top 10 significant (", ifelse(params$csUKA, "Final Score", "Median Final Score"), " > ", params$fscore_thr, " and ", ifelse(params$csUKA, "Specificity Score", "Mean Specificity Score"), " > ", params$spec_thr, ") kinases with differential activity in Test vs Control."), 
                             "Bar plots of Top 20 kinases regardless of cut-off, coloured by family / specificity scores;  Tables of Top 10 kinases regardless of cut-off; Coral kinome trees of significant kinases.", 
                             "All figures in Report", "")
           ) %>% flextable() %>% theme_box() %>%
@@ -428,11 +434,11 @@ data.frame("Deliverable" = c("Excel tables with all data: DATA FILES folder", "W
 For biological interpretation, we provide information here about pathway and network analysis tools. Refer to the Results Data Tables provided separately.
 For a specific comparison you can use:
 
-1. Phosphosite level data: we suggest to combine the PTK and STK significant results. Use the proteins mapped to phosphosites (in the “_enriched” files). Since multiple phosphosites can map to one protein, we suggest to use the mean fold change. (Significant phosphosites: p value<0.05; or set your own more/ less stringent cut-off). 
+1. Phosphosite level data: we suggest to combine the PTK and STK significant results. Use the proteins mapped to phosphosites (in the “_enriched” files). Since multiple phosphosites can map to one protein, use their mean fold change. (Significant phosphosites: p value<0.05; or set your own more/ less stringent cut-off). 
 
-2. Kinase level data: We suggest to combine the PTK and STK significant kinases (Median Final score >1.3; or set your own more/ less stringent cut-off). Effect direction and size: Use Median Kinase Statistic. 
+2. Kinase level data: We suggest to combine the PTK and STK significant kinases (`r if(params$csUKA) "Final score" else "Median Final score"` >1.3; or set your own more/ less stringent cut-off). Effect direction and size: Use `r if(params$csUKA) "Kinase Statistic" else "Median Kinase Statistic"`. 
 
-3. Combine (1) and (2) into one table, with a column for ID (e.g. Gene name or UniprotID), and a column for the LFC values (from (1)=LFC; From (2)=Median Kinase Statistic) and save as a txt file. When there is an overlap between kinases and the proteins mapped to phosphosites, we suggest to use kinase data. 
+3. Combine (1) and (2) into one table, with a column for ID (e.g. Gene name or UniprotID), and a column for the LFC values (from (1)=LFC; From (2)=`r if(params$csUKA) "Kinase Statistic" else "Median Kinase Statistic"`) and save as a txt file. When there is an overlap between kinases and the proteins mapped to phosphosites, we suggest to use kinase data. 
 An example dataset of significant proteins and kinases:
 
 

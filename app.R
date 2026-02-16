@@ -20,27 +20,38 @@ ui <- fluidPage(
                     fileInput("params", "Upload params.yml File to Restore Report Parameters"),
                 ),
                 textInput("author", "Author Name"),
-                dateInput("date", "Report Date"),
-                textAreaInput("aim", "Project Aim", rows = 3),
-                textAreaInput("comparisons", "Experiment Comparisons", rows = 3),
-                radioButtons(
-                  "stk_qc_method", "STK QC method", choices = c("LOD" = "LOD", "Nominal CV" = "nom_cv")),
+                div(
+                  style = "display: flex; align-items: center;",
+                  tags$label(style = "margin-right: 10px;", "Report date:"),
+                  dateInput("date", label = NULL, width = "160px")
+                ),
+                textAreaInput("aim", "Project Aim", rows = 2),
+                textAreaInput("comparisons", "Experiment Comparisons", rows = 2),
+                radioButtons("csUKA", "Use csUKA Analysis", choices = c("Yes" = "TRUE", "No" = "FALSE"), selected = "TRUE"),
+                numericInput("fscore_thr", "Final Score threshold", 1.3, 0, 10, step = 0.1),
+                numericInput("spec_thr", "Specificity Score threshold", 0.7, 0, 10, step = 0.1),
+                helpText("Score thresholds affect: main report top kinase table, coral tree, text."),
                 checkboxGroupInput("normalizations", "Normalizations", choices = c("VSN" = "vsn", "ComBat Correction" = "combat")),
-                textInput("qc_cv_factor", "Factor Used for CV Calculation"),
                 radioButtons("signal_heatmap", "Include Overall Signal Heatmap Text", choices = c("Yes" = "yes", "No" = "no")),
                 checkboxGroupInput("heatmap", "Significant Peptide Heatmap", choices = c("Yes" = "heatmap")),
                 checkboxGroupInput("kinase_analysis", "Kinase Analysis", 
-                                   choices = c("Score Plot - family" = "splotf", "Score Plot - specificity" = "splots", "Score Table" = "table", "Coral Tree" = "tree")),
-                numericInput("fscore_thr", "Final Score threshold", 1.3, 0, 10, step = 0.1),
+                                   choices = c("Score Table" = "table", "Coral Tree" = "tree")),
+                helpText("The below outputs are deprecated and should be only used when necessary - not as default!"),
+                checkboxGroupInput("kinase_analysis_old", "Deprecated Kinase outputs", 
+                                   choices = c("Score Plot - family" = "splotf", "Score Plot - specificity" = "splots")),
+                radioButtons(
+                  "stk_qc_method", "STK QC method", choices = c("LOD" = "LOD", "Nominal CV" = "nom_cv")),
+                helpText("Coral KS thresholds are derived from the 0.1 and 0.9 percentile of the data for each comparison."),
                 radioButtons(
                   "coral_ks_thrs", "Coral Kinase Statistics thresholds", choices = c("Automatic" = "coral_auto", "Manual" = "coral_man")),
+                helpText("The same manual thresholds apply for all comparisons."),
                 conditionalPanel("input.coral_ks_thrs == 'coral_man'",
                                  numericInput("coral_min", "Coral KS min", -5, -30, 30),
                                  numericInput("coral_max", "Coral KS max", 5, -30, 30)
                 ),
-
                 radioButtons("xax_scale", "Same X axis for all score plots", 
                              choices = c("No" = "no", "Yes" = "yes")),
+                textInput("qc_cv_factor", "Factor Used for CV Calculation"),
                 fluidRow(
                   actionButton("save", "Save Parameters", class = "btn-lg btn-primary"),
                   disabled(actionButton("knit", "Knit Report", class = "btn-lg btn-success")),
@@ -73,7 +84,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   make_data_folders <- function() {
-    folders <- c("01_Basic Processing", "02_Phosphosite Analysis", "03_Kinase Analysis", "99_Saved Plots", "unzipped", "output")
+    folders <- c("01_Basic Processing", "02_Phosphosite Analysis", "03_Kinase Analysis", "01_REPORTS", "02_DATA", "03_FIGURES", "unzipped", "output")
     for (folder in folders) {
       if (!dir.exists(folder)) {
         dir.create(folder)
@@ -82,7 +93,7 @@ server <- function(input, output, session) {
   }
 
   remove_data_folders <- function() {
-    folders <- c("01_Basic Processing", "02_Phosphosite Analysis", "03_Kinase Analysis", "99_Saved Plots", "unzipped", "output")
+    folders <- c("01_Basic Processing", "02_Phosphosite Analysis", "03_Kinase Analysis", "01_REPORTS", "02_DATA", "03_FIGURES", "unzipped", "output")
     for (folder in folders) {
       if (dir.exists(folder)) {
         unlink(folder, recursive = TRUE)
@@ -101,9 +112,12 @@ server <- function(input, output, session) {
     updateRadioButtons(session, 'stk_qc_method', selected = params_list$`stk_qc_method`)
     updateTextInput(session, "qc_cv_factor", value = params_list$`qc_cv_factor`)
     updateCheckboxGroupInput(session, "heatmap", selected = ifelse(is.null(params_list$`phosphosite_heatmap`), character(0), "heatmap"))
-    #updateCheckboxGroupInput(session, "kinase_analysis", selected = params_list$`kinase_analysis`)
+    updateCheckboxGroupInput(session, "kinase_analysis", selected = params_list$`kinase_analysis`)
+    updateCheckboxGroupInput(session, "kinase_analysis_old", selected = params_list$`kinase_analysis_old`)
+    updateRadioButtons(session, 'csUKA', selected = ifelse(is.null(params_list$`csUKA`), "FALSE", as.character(params_list$`csUKA`)))
     updateRadioButtons(session, 'coral_ks_thrs', selected = params_list$`coral_ks_thrs`)
     updateNumericInput(session, "fscore_thr", selected = params_list$`fscore_thr`)
+    updateNumericInput(session, "spec_thr", selected = params_list$`spec_thr`)
     updateRadioButtons(session, "datatype", selected = params_list$datatype)
   }
 
@@ -119,7 +133,10 @@ server <- function(input, output, session) {
             "signal_heatmap" = input$`signal_heatmap`,
             "phosphosite_heatmap" = input$heatmap,
             "kinase_analysis" = input$`kinase_analysis`,
+            "kinase_analysis_old" = input$`kinase_analysis_old`,
+            "csUKA" = as.logical(input$csUKA),
             "fscore_thr" = input$`fscore_thr`,
+            "spec_thr" = input$`spec_thr`,
             "coral_ks_thrs" = input$`coral_ks_thrs`,
             "coral_min" = input$`coral_min`,
             "coral_max" = input$`coral_max`,
@@ -157,9 +174,9 @@ server <- function(input, output, session) {
     date_str <- format(input$date, "%y%m%d")
     file_name <- paste0(date_str, "_Report.zip")
     zip_contents <- c(
-      paste0("01_MainReport_", date_str, ".docx"),
-      paste0("02_ReportSupplement_", date_str, ".docx"),
-      "99_Saved Plots/",
+      "01_REPORTS/",
+      "02_DATA/", 
+      "03_FIGURES/",
       "params.yml"
     )
     zip(paste0("output/", file_name), zip_contents)
@@ -199,7 +216,7 @@ server <- function(input, output, session) {
       dir.create("temp")
     }
     
-    kinase_table <- read_kinase_dir()
+    kinase_table <- read_kinase_dir(csUKA = as.logical(input$csUKA))
     
     if (nrow(kinase_table) > 0) {
       write_csv(kinase_table, file = "temp/kinase_files.csv")

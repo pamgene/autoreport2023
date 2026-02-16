@@ -8,8 +8,11 @@ params:
   signal_heatmap: NULL
   normalizations: NULL
   kinase_analysis: NULL
+  kinase_analysis_old: NULL
   score_plot_color: NULL
   fscore_thr: NULL
+  spec_thr: NULL
+  csUKA: NULL
   coral_ks_thrs: NULL
   coral_min: NULL
   coral_max: NULL
@@ -42,7 +45,7 @@ source("R/03_KinaseAnalysis.R")
 
 # Introduction
 
-The PamGene assays measure kinase activity in cell and tissue lysates by measuring the phosphorylation of peptide representations of kinase targets/ substrates (referred hereafter as phosphosites) that are immobilized on the PamChip® microarrays. The active kinases in the sample lysates will phosphorylate their target on the array. Generic fluorescent labeled antibodies that recognize phosphorylated residues are used to visualize the phosphorylation. There are two types of PamChip® microarrays; one has 196 protein tyrosine kinase (PTK) and the other 144 serine/threonine kinase (STK) phosphosites. The supplement to this report can be found as `02_ReportSupplement.docx`, hereafter referred to as Supplement.
+The PamGene assays measure kinase activity in cell and tissue lysates by measuring the phosphorylation of peptide representations of kinase targets/ substrates (referred hereafter as phosphosites) that are immobilized on the PamChip® microarrays. The active kinases in the sample lysates will phosphorylate their target on the array. Generic fluorescent labeled antibodies that recognize phosphorylated residues are used to visualize the phosphorylation. There are two types of PamChip® microarrays; one has 196 protein tyrosine kinase (PTK) and the other 144 serine/threonine kinase (STK) phosphosites. The supplement to this report can be found as `02_ReportSupplement_PamGene.docx`, hereafter referred to as Supplement.
 
 ## Study Information
 
@@ -117,13 +120,13 @@ Kinases phosphorylate multiple phosphosites on the PamChip. To address which kin
 
 ### Top kinases table
 
-The table below shows the top 10 kinases using the threshold Median Final Score > `r params$fscore_thr`.
+The table below shows the top 10 kinases using the threshold `r if(params$csUKA) "Final Score" else "Median Final Score"` > `r params$fscore_thr` and `r if(params$csUKA) "Specificity Score" else "Mean Specificity Score"` > `r params$spec_thr`.
 
 ```{r kinase analysis}
 kinase_files <- read_csv("temp/kinase_files.csv")
 
 if (nrow(kinase_files) > 0) {
-  kinases <- parse_kinase_files(kinase_files)
+  kinases <- parse_kinase_files(kinase_files, fscore_thr = params$`fscore_thr`, spec_thr = params$`spec_thr`, csUKA = params$csUKA)
   make_report_table(kinases, "Kinase Analysis")
 }
 
@@ -131,7 +134,7 @@ if (nrow(kinase_files) > 0) {
 
 ### Kinase dotplots
 
-The Kinase dotplots below show the specificity (Specificity Score) and Fold Change (Median Kinase Statistic) of the significant kinases in different comparisons. Significance threshold is set to Median Final Score  > `r params$fscore_thr`. Bigger dots mean higher specificity. The kinases are clustered by families.
+The Kinase dotplots below show the specificity (`r if(params$csUKA) "Specificity Score" else "Mean Specificity Score"`) and Fold Change (`r if(params$csUKA) "Kinase Statistic" else "Median Kinase Statistic"`) of the significant kinases in different comparisons. Significance threshold is set to `r if(params$csUKA) "Final Score" else "Median Final Score"`  > `r params$fscore_thr` and `r if(params$csUKA) "Specificity Score" else "Mean Specificity Score"` > `r params$spec_thr`. Bigger dots mean higher specificity. The kinases are clustered by families.
 
 
 

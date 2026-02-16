@@ -8,6 +8,27 @@ clean_tercen_columns <- function(df) {
   return(df)
 }
 
+get_column_names <- function(csUKA = FALSE) {
+  if (csUKA) {
+    list(
+      finalscore_col = "Final score",
+      spec_col = "Specificity Score", 
+      kinstat_col = "Kinase Statistic",
+      sig_col = 'Significance Score',
+      pepsetsize_col = 'Peptide set size'
+    )
+  } else {
+    list(
+      finalscore_col = "Median Final score",
+      spec_col = "Mean Specificity Score",
+      kinstat_col = "Median Kinase Statistic",
+      sig_col = 'Mean Significance Score',
+      pepsetsize_col = 'Mean peptide set size'
+    )
+  }
+}
+
+
 read_qc_dir <- function(folder = "01_Basic Processing/") {
   # will return df with files for easy processing
   files <- list.files(folder, pattern = ".txt$|.csv$", full.names = TRUE, include.dirs = FALSE)
@@ -119,8 +140,8 @@ process_ukat_ukam <- function(folder){
              # save to the 03_Kinase Analysis folder to read again
              write_csv(split_uka_w[[x]], filename)
              filename_to_report <- ifelse(ukatype == "ukam", 
-                                          paste0("99_Saved Plots/UKA_", assay_type, "_", sprintf("%02d",counter), "_", test, " - ", x, " vs ", ctrl, ".csv"),
-                                          paste0("99_Saved Plots/UKA_", assay_type, "_", sprintf("%02d",counter), "_", x, " - ", comparison, ".csv"))
+                                          paste0("02_DATA/UKA_", assay_type, "_", sprintf("%02d",counter), "_", test, " - ", x, " vs ", ctrl, ".csv"),
+                                          paste0("02_DATA/UKA_", assay_type, "_", sprintf("%02d",counter), "_", x, " - ", comparison, ".csv"))
              # save to output folder
              write_csv(split_uka_w[[x]], filename_to_report)
            })
@@ -132,25 +153,28 @@ process_ukat_ukam <- function(folder){
 }
 
 
-process_uka_allvsall <- function(files, folder, counter = 0) {
+process_uka_allvsall <- function(files, csUKA, folder, counter = 0) {
   # To process UKA files from UKA_app that gives a Sgroup_contrast column
   files_to_process <- files
-  
+  cols <- get_column_names(csUKA)
+
   for (f in files_to_process) {
     uka <- read_delim(f, show_col_types = FALSE) %>% clean_tercen_columns()
     uka_important_cols <- uka %>% 
-      select(any_of(c('Final score rank', 'Supergroup', 'Test Condition',	'contrast',	'Sgroup_contrast',	'Kinase Name',	'Kinase Uniprot ID',	
-                    'Kinase Group',	'Kinase Family', 'Median Final score', 'Mean Significance Score',	'Mean Specificity Score',	
-                    'Median Kinase Statistic', 'Mean peptide set size')))
+      select(any_of(c('Final score rank', 'Supergroup', 'Test Condition',	'contrast',	
+                    'Sgroup_contrast',	'Kinase Name',	'Kinase Uniprot ID',	
+                    'Kinase entrezid', 'Kinase Group',	'Kinase Family', 
+                    cols$finalscore_col, cols$sig_col, cols$spec_col,	
+                    cols$kinstat_col, cols$pepsetsize_col)))
     # write this cleaned version to the output of 99_Saved_plots
-    write_csv(uka, paste0("99_Saved Plots/", tools::file_path_sans_ext(basename(f)), "_all_columns.", tools::file_ext(f)))
-    write_csv(uka_important_cols, paste0("99_Saved Plots/", basename(f) ))
+    write_csv(uka, paste0("02_DATA/", tools::file_path_sans_ext(basename(f)), "_all_columns.", tools::file_ext(f)))
+    write_csv(uka_important_cols, paste0("02_DATA/", basename(f) ))
 
     if ("Sgroup_contrast" %in% colnames(uka)) {
       uka <- uka %>% dplyr::rename('Comparison' = 'Sgroup_contrast')
     }
     
-    uka <- uka %>% arrange(Comparison, -`Median Final score`)
+    uka <- uka %>% arrange(Comparison, desc(!!sym(cols$finalscore_col)))
     uka$Comparison <- sub("_", " - ", uka$Comparison)
     assay_type <- sub(".*UKA_(.TK)_.*", "\\1", f)
     
@@ -180,7 +204,7 @@ process_uka_allvsall <- function(files, folder, counter = 0) {
 
 
 
-read_kinase_dir <- function(folder = "03_Kinase Analysis/") {
+read_kinase_dir <- function(folder = "03_Kinase Analysis/", csUKA) {
   # will return df with files for easy processing
   files <- list.files(folder, pattern = ".txt$|.csv$", full.names = TRUE, include.dirs = FALSE)
   if (length(files) == 0) {
@@ -196,7 +220,7 @@ read_kinase_dir <- function(folder = "03_Kinase Analysis/") {
   # if it is uka all vs all comparison, make the same dataformat as old uka, save and read the files again
   uka_example <- read_delim(files[1], show_col_types = FALSE) %>% clean_tercen_columns()
   if ("contrast" %in% colnames(uka_example)){
-    files <- process_uka_allvsall(files = files, folder = folder)
+    files <- process_uka_allvsall(files = files, csUKA = csUKA, folder = folder)
   }
   
   

@@ -1,7 +1,15 @@
 renv::restore()
 
-if (!dir.exists("99_Saved Plots")){
-  dir.create("99_Saved Plots")
+if (!dir.exists("01_REPORTS")){
+  dir.create("01_REPORTS")
+}
+
+if (!dir.exists("02_DATA")){
+  dir.create("02_DATA")
+}
+
+if (!dir.exists("03_FIGURES")){
+  dir.create("03_FIGURES")
 }
 
 if (!dir.exists("temp")){
@@ -9,8 +17,8 @@ if (!dir.exists("temp")){
 }
 
 date_str <- format(Sys.Date(), "%y%m%d")
-main_report_file <- paste0("01_MainReport_", date_str, ".docx")
-supplement_file <- paste0("02_ReportSupplement_", date_str, ".docx")
+main_report_file <- paste0("01_REPORTS/01_MainReport_PamGene_", date_str, ".docx")
+supplement_file <- paste0("01_REPORTS/02_ReportSupplement_PamGene_", date_str, ".docx")
 
 rmarkdown::render("01_MainReport.Rmd", 
                   params = yaml::read_yaml("./params.yml"),

@@ -41,7 +41,8 @@ extract_phosphosite_data_limma_tercen <- function(filepath, assay_type) {
     clean_tercen_columns() %>%
     drop_na(contrast) %>%
     mutate(Assay_type = assay_type) %>%
-    dplyr::rename("LogFC" = "logFC", "P" = "pvalue") 
+    dplyr::rename("LogFC" = "logFC", "P" = "pvalue") %>%
+    filter(P > 0)
   
   group_col <- names(df)[1] # supergroup
   column_names <- colnames(df)
@@ -308,7 +309,7 @@ enrich_results <- function(stats_files){
       df_e <- left_join(df, e, by = "ID")
       first_cols <- colnames(df_e)[! colnames(df_e) %in% c("LogFC", "P", "Assay_type")]
       df_e <- df_e[c(first_cols, "LogFC", "P", "Assay_type")]
-      write_csv(df_e, paste0("99_Saved Plots/TT_", assaytype, "_", ttest_rows[i,]$Order, "_", ttest_rows[i,]$Comparison, "_enriched.csv"))
+      write_csv(df_e, paste0("02_DATA/TT_", assaytype, "_", ttest_rows[i,]$Order, "_", ttest_rows[i,]$Comparison, "_enriched.csv"))
     }
   }
   
@@ -321,7 +322,7 @@ enrich_results <- function(stats_files){
       df_e <- left_join(df, e, by = "ID")
       first_cols <- colnames(df_e)[! colnames(df_e) %in% c("LogFC", "P", "Assay_type")]
       df_e <- df_e[c(first_cols, "LogFC", "P", "Assay_type")]
-      write_csv(df_e, paste0("99_Saved Plots/MTvC_", assaytype, "_", mtvc_rows[i,]$Order, "_", mtvc_rows[i,]$Group, "_enriched.csv"))
+      write_csv(df_e, paste0("02_DATA/MTvC_", assaytype, "_", mtvc_rows[i,]$Order, "_", mtvc_rows[i,]$Group, "_enriched.csv"))
     }
   }
   if ("Limma" %in% stats_files$Stats){
@@ -334,7 +335,7 @@ enrich_results <- function(stats_files){
       last_cols <- c("LogFC", "P", "FDR", "Assay_type")
       first_cols <- setdiff(colnames(df_e), last_cols)
       df_e <- df_e[,c(first_cols, last_cols)]
-      write_csv(df_e, paste0("99_Saved Plots/Limma_", assaytype, "_", limma_rows[i,]$Order, "_", limma_rows[i,]$Group, "_enriched.csv"))
+      write_csv(df_e, paste0("02_DATA/Limma_", assaytype, "_", limma_rows[i,]$Order, "_", limma_rows[i,]$Group, "_enriched.csv"))
     }
     
     
@@ -623,14 +624,14 @@ make_volcano_plots <- function(stats_files, stats_type = "MTvC", datatype = "bio
         these_levels <- all_levels[idx_start:idx_end]
         df_sub <- df %>% filter(Comparison %in% these_levels)
         p <- render_volcano_plot(df_sub, stats_range$lfc, stats_range$p)
-        filename <- paste0("99_Saved Plots/", stats_type, "_", group, if (!is.null(assay_type)) paste0("_", assay_type), "_Volcano_batch_", i, ".png")
+        filename <- paste0("03_FIGURES/", stats_type, "_", group, if (!is.null(assay_type)) paste0("_", assay_type), "_Volcano_batch_", i, ".png")
         ggsave(filename, p, width = 8.27, height = 11.69, units = "in", dpi = 300)
         plot_list[[i]] <- p
       }
       return(plot_list)
     } else {
       p <- render_volcano_plot(df, stats_range$lfc, stats_range$p)
-      filename <- paste0("99_Saved Plots/", stats_type, "_", group, if (!is.null(assay_type)) paste0("_", assay_type), "_Volcano.png")
+      filename <- paste0("03_FIGURES/", stats_type, "_", group, if (!is.null(assay_type)) paste0("_", assay_type), "_Volcano.png")
       ggsave(filename, p, width = 8.27, height = 11.69, units = "in", dpi = 300)
       return(p)
     }
@@ -648,7 +649,7 @@ make_volcano_plots <- function(stats_files, stats_type = "MTvC", datatype = "bio
       p_stk <- render_volcano_plot(c_stk, stats_range$lfc, stats_range$p)
       
       pg <- plot_grid(p_ptk, p_stk, ncol = 1, labels = c("PTK", "STK"))
-      ggsave(paste0("99_Saved Plots/", stats_type, "_", group, "_Volcano.pdf"), pg, 
+      ggsave(paste0("03_FIGURES/", stats_type, "_", group, "_Volcano.pdf"), pg, 
              width = 8.27, height = 11.69, units = "in", dpi = 300)
       
       plots[[length(plots) + 1]] <- pg
@@ -814,7 +815,7 @@ make_heatmaps <- function(stats_files, stats_type = "MTvC", datatype = "bionav")
   # Function to generate and save heatmaps
   generate_heatmap <- function(df, group, assay_type = NULL, comparison = NULL) {
     heatmap <- render_heatmap(df, stats_range$lfc, comparison = comparison, assay_type = assay_type)
-    filename <- paste0("99_Saved Plots/", stats_type, "_", group, if (!is.null(assay_type)) paste0("_", assay_type), "_Heatmap.pdf")
+    filename <- paste0("03_FIGURES/", stats_type, "_", group, if (!is.null(assay_type)) paste0("_", assay_type), "_Heatmap.pdf")
     ppars <- get_plotparams(list(df))
     ggsave(filename, heatmap, width = 10, height = ppars$h)
     heatmap

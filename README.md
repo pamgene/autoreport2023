@@ -2,7 +2,22 @@
 
 Automated reporting.
 
-## Deployment
+## Development
+* use VSCode to be able to edit running container.
+* params should be declared in the Rmd files where needed, and in the params.yaml. 
+* to print debug statements in the container logs, use message()
+* use data/test input files to test all inputs
+
+To set up container locally, use the 5050:5050 port:
+
+docker build -t autoreport .
+docker run -dp 5050:5050 autoreport
+
+
+Logs of issues and feature requests found [here](https://pamgenecom.sharepoint.com/sites/Tercendev/SitePages/ProjectHome.aspx).
+
+
+## Deployment to reagentdb:
 
 1. version as vx.x.x. 
 The Github Actions workflow builds and pushes the new Docker image on Dockerhub under pamgene/autoreport2023.
