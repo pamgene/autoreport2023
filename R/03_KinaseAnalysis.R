@@ -390,7 +390,7 @@ make_kinase_tables <- function(kinase_files, csUKA) {
 render_single_coral <- function(df, comparison, tree_dir = "03_FIGURES", ks_min, ks_max, csUKA) {
   cols <- get_column_names(csUKA = csUKA)
   message(paste("Rendering Coral tree for comparison:", comparison, " with number of significant kinases:", nrow(df)))
-  coral_file <- CORALcli::plot_tree(df, comparison, tree_dir = tree_dir, min_col = ks_min, max_col = ks_max, fscore_col = cols$finalscore_col, kinstat_col = cols$kinstat_col)
+  coral_file <- CORALcli::plot_tree(df, comparison, tree_dir = tree_dir, min_col = ks_min, max_col = ks_max, fscore_col = cols$spec_col, kinstat_col = cols$kinstat_col)
   return(coral_file)
 }
 
@@ -426,7 +426,7 @@ crop_coral_tree <- function(file_location, dimension) {
   crop_string <- calc_crop(dimension)
   img <- magick::image_crop(img, crop_string)
   img <- magick::image_convert(img, "png")
-  png_name <- paste0("03_FIGURES/", img_loc, ".png")
+  png_name <- paste0("temp/", img_loc, ".png")
   magick::image_write(img, path = png_name, format = "png")
   return(png_name)
 }

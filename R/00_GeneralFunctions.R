@@ -163,7 +163,7 @@ process_uka_allvsall <- function(files, csUKA, folder, counter = 0) {
     uka_important_cols <- uka %>% 
       select(any_of(c('Final score rank', 'Supergroup', 'Test Condition',	'contrast',	
                     'Sgroup_contrast',	'Kinase Name',	'Kinase Uniprot ID',	
-                    'Kinase entrezid', 'Kinase Group',	'Kinase Family', 
+                    'Kinase entrezid', 'entrezid', 'Kinase Group',	'Kinase Family', 
                     cols$finalscore_col, cols$sig_col, cols$spec_col,	
                     cols$kinstat_col, cols$pepsetsize_col)))
     # write this cleaned version to the output of 99_Saved_plots

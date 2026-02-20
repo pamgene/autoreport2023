@@ -29,10 +29,10 @@ The Github Actions workflow builds and pushes the new Docker image on Dockerhub 
 2/2. stop running autoreport container and delete image
 ```
 docker ps
-docker rm -f <container-id>
-docker image ls
-docker image rm <IMAGE ID>
+docker rm -f <container id>
 
+docker image ls
+docker image rm <image id>
 ```
 2/3. Pull image from dockerhub
 ```
@@ -41,6 +41,11 @@ docker pull pamgene/autoreport2023:latest
 2/4. Run 
 ```
 docker run -dp 5050:5050 --restart unless-stopped pamgene/autoreport2023:latest
+```
+
+Before stopping container, check activity:
+```
+docker logs --since 10m <container id>
 ```
 
 # Maintainer
