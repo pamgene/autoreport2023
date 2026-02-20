@@ -2,7 +2,7 @@
 
 Automated reporting.
 
-## Development
+## Development tips
 * use VSCode to be able to edit running container.
 * params should be declared in the Rmd files where needed, and in the params.yaml. 
 * to print debug statements in the container logs, use message()
