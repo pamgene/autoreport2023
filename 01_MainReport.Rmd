@@ -1,5 +1,5 @@
 ---
-title: "PamGene Data Analysis Report"
+title: "PamDx Data Analysis Report"
 params:
   author: "me"
   date: "January 1st, 1970"
@@ -45,7 +45,7 @@ source("R/03_KinaseAnalysis.R")
 
 # Introduction
 
-The PamGene assays measure kinase activity in cell and tissue lysates by measuring the phosphorylation of peptide representations of kinase targets/ substrates (referred hereafter as phosphosites) that are immobilized on the PamChip® microarrays. The active kinases in the sample lysates will phosphorylate their target on the array. Generic fluorescent labeled antibodies that recognize phosphorylated residues are used to visualize the phosphorylation. There are two types of PamChip® microarrays; one has 196 protein tyrosine kinase (PTK) and the other 144 serine/threonine kinase (STK) phosphosites. The supplement to this report can be found as `02_ReportSupplement_PamGene.docx`, hereafter referred to as Supplement.
+The PamDx assays measure kinase activity in cell and tissue lysates by measuring the phosphorylation of peptide representations of kinase targets/ substrates (referred hereafter as phosphosites) that are immobilized on the PamChip® microarrays. The active kinases in the sample lysates will phosphorylate their target on the array. Generic fluorescent labeled antibodies that recognize phosphorylated residues are used to visualize the phosphorylation. There are two types of PamChip® microarrays; one has 196 protein tyrosine kinase (PTK) and the other 144 serine/threonine kinase (STK) phosphosites. The supplement to this report can be found as `02_ReportSupplement_PamDx.docx`, hereafter referred to as Supplement.
 
 ## Study Information
 
@@ -88,7 +88,7 @@ if (nrow(qc_files) > 0) {
 
 ```
 
-As a first data analysis step, the quality of the dataset is assessed based on PamGene’s QC criteria for signal strength, number of peptides and the replicate variation. The data quality can either be “good” (i.e., green flag ![](img/green_10.png),  “fair” (i.e., orange flag,  ![](img/orange_10.png)) or “poor” (i.e., red flag, ![](img/red_10.png)). The quality scores serve to assess the reliability of the data. Further details about the definition of QC flags and how they are applied to the data are provided in Supplement section 2.2.2.
+As a first data analysis step, the quality of the dataset is assessed based on PamDx’s QC criteria for signal strength, number of peptides and the replicate variation. The data quality can either be “good” (i.e., green flag ![](img/green_10.png),  “fair” (i.e., orange flag,  ![](img/orange_10.png)) or “poor” (i.e., red flag, ![](img/red_10.png)). The quality scores serve to assess the reliability of the data. Further details about the definition of QC flags and how they are applied to the data are provided in Supplement section 2.2.2.
 
 `r if(nrow(qc_files) > 0) qc_result`
 
@@ -116,11 +116,16 @@ Corresponding volcano plots can be found in Supplement section 2.3.
 
 ## Upstream Kinase Analysis (UKA)
 
-Kinases phosphorylate multiple phosphosites on the PamChip. To address which kinases are responsible for the phosphorylation differences between conditions, we perform Upstream Kinase Analysis (UKA). The UKA predicts potential kinases by examining changes in their associated phosphosite sets. The phosphosite sets are derived from publicly available databases of kinase-protein-phosphosite relationships. For the details of the algorithm, explanation of the scores and further visualizations (kinome trees), refer to Supplement 2.4.
+Kinases phosphorylate multiple phosphosites on the PamChip. To address which kinases are responsible for the phosphorylation differences between conditions, we perform Upstream Kinase Analysis (UKA). The UKA predicts potential kinases by examining changes in their associated phosphosite sets. The phosphosite sets are derived from publicly available databases of kinase-phosphosite relationships. For the details of the algorithm, explanation of the scores and further visualizations (kinome trees), refer to Supplement 2.4.
+
+`r if(params$fscore_thr != 0 || params$spec_thr != 0) "The following filter(s) were used to focus on top results:"`
+
+`r if(params$fscore_thr != 0) paste0("* ", if(params$csUKA) "Final Score" else "Median Final Score", " > ", params$fscore_thr)`
+`r if(params$spec_thr != 0) paste0("* ", if(params$csUKA) "Specificity Score" else "Mean Specificity Score", " > ", params$spec_thr)`
 
 ### Top kinases table
 
-The table below shows the top 10 kinases using the threshold `r if(params$csUKA) "Final Score" else "Median Final Score"` > `r params$fscore_thr` and `r if(params$csUKA) "Specificity Score" else "Mean Specificity Score"` > `r params$spec_thr`.
+The table below shows the top 10 kinases.
 
 ```{r kinase analysis}
 kinase_files <- read_csv("temp/kinase_files.csv")
@@ -134,7 +139,7 @@ if (nrow(kinase_files) > 0) {
 
 ### Kinase dotplots
 
-The Kinase dotplots below show the specificity (`r if(params$csUKA) "Specificity Score" else "Mean Specificity Score"`) and Fold Change (`r if(params$csUKA) "Kinase Statistic" else "Median Kinase Statistic"`) of the significant kinases in different comparisons. Significance threshold is set to `r if(params$csUKA) "Final Score" else "Median Final Score"`  > `r params$fscore_thr` and `r if(params$csUKA) "Specificity Score" else "Mean Specificity Score"` > `r params$spec_thr`. Bigger dots mean higher specificity. The kinases are clustered by families.
+The Kinase dotplots below show the specificity (`r if(params$csUKA) "Specificity Score" else "Mean Specificity Score"`) and Fold Change (`r if(params$csUKA) "Kinase Statistic" else "Median Kinase Statistic"`) of the significant kinases in different comparisons. Larger dots indicate higher specificity. The kinases are clustered by families.
 
 
 
@@ -143,6 +148,9 @@ The Kinase dotplots below show the specificity (`r if(params$csUKA) "Specificity
 
 Further insights into pathway analysis and networks could be interesting.
 
-Free online tutorials for publicly available pathway analysis tools are provided here: https://pamgene.com/ps12/
+Free online tutorials for publicly available pathway analysis tools are provided here: https://pamdx.com/ps12/
 
 To validate results, refer to the guideline in the Report Supplement Section 3.
+
+DISCLAIMER:
+Support for the analysis of this project is provided for a period of 1 year. Please note that PamDx continuously improves its products and software. As a result, future projects may be conducted using updated versions, and reanalysis of existing data with newer methods may incur additional costs. In addition, the analysis of new samples originating from the same experiment at a later stage requires prior consultation and careful planning together with PamDx. Integration of such new data with the current project may be complex and could lead to additional charges.

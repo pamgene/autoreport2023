@@ -1,5 +1,5 @@
 ---
-title: "PamGene Report Supplement"
+title: "PamDx Report Supplement"
 params:
   author: "me"
   date: "January 1st, 1970"
@@ -50,15 +50,15 @@ source("R/03_KinaseAnalysis.R")
 
 This supplement gives a detailed explanation of the methods used in the main study report.
 
-With PamGene's kinase activity profiling platform, the activity of kinases in a wide range of cells and tissues can be measured in real time. We use our proprietary 3D peptide microarray technology (PamChip® and PamStation®) which offers a multiplex method for global kinase activity profiling. The assay is very sensitive, requiring only a small amount of lysate to measure the activity of kinases in various samples including cell lines, xenografts and human tissues. Lysates obtained from a few thousand cells can suffice to obtain a kinome profile of the multiple kinases present in these samples. This is accomplished by incubating the sample lysates across peptide substrates immobilized on the 3D surface of the PamChip® microarray (196 protein tyrosine kinase (PTK) or 144 serine/threonine kinase (STK), hereafter referred to as phosphosites). Kinases present in the lysates will phosphorylate the phosphosites, which are visualized using fluorescently labelled antibodies.
+With PamDx's kinase activity profiling platform, the activity of kinases in a wide range of cells and tissues can be measured in real time. We use our proprietary 3D peptide microarray technology (PamChip® and PamStation®) which offers a multiplex method for global kinase activity profiling. The assay is very sensitive, requiring only a small amount of lysate to measure the activity of kinases in various samples including cell lines, xenografts and human tissues. Lysates obtained from a few thousand cells can suffice to obtain a kinome profile of the multiple kinases present in these samples. This is accomplished by incubating the sample lysates across peptide substrates immobilized on the 3D surface of the PamChip® microarray (196 protein tyrosine kinase (PTK) or 144 serine/threonine kinase (STK), hereafter referred to as phosphosites). Kinases present in the lysates will phosphorylate the phosphosites, which are visualized using fluorescently labelled antibodies.
 
 ## PamChip Technology and Assay Principle
 
-PamGene's microarray assay for kinase activity profiling is based on measuring phosphorylation of phosphosites by protein kinases. The PamChip® 4 consumable consists of 4 identical arrays, each array containing 144 (STK) or 196 (PTK) phosphosites immobilized on a porous ceramic membrane (Figure 1). These phosphosites are encoded in 13 amino acid long peptides which derived from literature or computational predictions. with the phosphorylation of these phosphosites is then used to predict one or multiple upstream kinases (Protein tyrosine kinases for the PTK PamChip® and Serine threonine kinases for the STK PamChip®). Fluorescently labelled anti-phospho-antibodies are used to detect phosphorylation activity of kinases present in the sample (Figure 1).
+PamDx's microarray assay for kinase activity profiling is based on measuring phosphorylation of phosphosites by protein kinases. The PamChip® 4 consumable consists of 4 identical arrays, each array containing 144 (STK) or 196 (PTK) phosphosites immobilized on a porous ceramic membrane (Figure 1). These phosphosites are encoded in 13 amino acid long peptides which derived from literature or computational predictions. with the phosphorylation of these phosphosites is then used to predict one or multiple upstream kinases (Protein tyrosine kinases for the PTK PamChip® and Serine threonine kinases for the STK PamChip®). Fluorescently labelled anti-phospho-antibodies are used to detect phosphorylation activity of kinases present in the sample (Figure 1).
 
 During the assay, the sample is pumped through the porous membrane, allowing for shorter assay times. When the solution is underneath the array, images of each array are taken at several exposure times by a camera in the workstation (Figure 1). Images are later used by the BioNavigator® software to calculate signal values for each phosphosite. The data workflow consisting of image quantification, quality control, statistical analysis, visualization and interpretation is performed using the BioNavigator® software.
 
-```{r assay-principle, message=FALSE, fig.align='center', fig.cap='PamGene technology outline and PamChip assay principle.'}
+```{r assay-principle, message=FALSE, fig.align='center', fig.cap='PamDx technology outline and PamChip assay principle.'}
 knitr::include_graphics("./img/AssayPrinciple.png")
 ```
 \newpage
@@ -335,18 +335,18 @@ if (nrow(stats_files) > 0) {
 
 ### Differential upstream kinase analysis methods: “Test condition(s)” versus “Control”
 
-The **Upstream Kinase Analysis (UKA)** algorithm predicts differential kinase activity in a Test Condition compared to Control. The UKA is a functional class scoring method: to predict a kinase, it analyzes the changes in its set of phosphosites. A phosphosite set of a kinase comes from public databases of kinase-protein-phosphosite relationships. The UKA assigns scores to the predicted kinases indicating how strongly the kinase is associated with the observed changes in peptide signal. UKA is run on all QC-passed peptides, not only on significant peptides. 
+The **Upstream Kinase Analysis (UKA)** algorithm predicts differential kinase activity in a Test Condition compared to Control. The UKA is a functional class scoring method: to predict a kinase, it analyzes the changes in its set of phosphosites. Phosphosite sets of  kinases are derived from public databases of kinase-phosphosite relationships. The UKA assigns scores to the predicted kinases indicating how strongly the kinase is associated with the observed changes in peptide signal. UKA is run on all QC-passed peptides, not only on significant peptides. 
 The results can be used to generate hypotheses and the selected kinases need to be further validated. Whether they make sense in a biological context is dependent on several factors (e.g., the model system used in the experiments) and requires further consideration.
 
 The UKA algorithm returns the following scores:
 
-* **Kinase Statistic**: represents the direction of effect: the change in kinase activity in a Test condition (T) compared to a Control condition (C). < 0 means inhibition, > 0 means activation in T versus C. The Kinase Statistic is the median of the Peptide Statistics of the set of peptides that a kinase can phosphorylate. The Peptide Statistic is the signal-to-noise ratio of peptides between T and C. Thus, the Kinase Statistic represents the log fold change scaled by the noise. 
+* **Kinase Statistic**: represents the direction of effect (fold change): the change in kinase activity in a Test condition (T) compared to a Control condition (C). < 0 means inhibition, > 0 means activation in T versus C. The Kinase Statistic is the median of the Peptide Statistics of the set of peptides that a kinase can phosphorylate. The Peptide Statistic is the signal-to-noise ratio of peptides between T and C. Thus, the Kinase Statistic represents the log fold change scaled by the noise. 
 
-* **Significance Score**: the significance of the Kinase Statistic is based on a permutation test where the samples are permuted. The Kinase Statistic is recalculated for each permutation. The Significance Score is based on the difference between the Kinase Statistic of the actual sample versus that of the permuted samples. A high Significance Score means a high probability that the kinase is differentially active between Test and Control.
+* **Specificity Score**: p-value based score measuring the likelihood that the kinase is specifically responsible for the observed phosphosite changes. It’s calculated by permuting phosphosites across kinases and asking “could this kinase fold change from a random peptide set?” 
 
-* **Specificity Score**: the specificity of the Kinase Statistic is based on a permutation test, where the peptides are permuted. The Kinase Statistic is recalculated for each permutation.  The Specificity Score is based on the difference between the Kinase Statistic of the actual sample versus that of the permuted samples. A high Specificity Score means a high probability that the observed effect could not have been obtained by a random set of peptides. 
+* **Significance Score**: p-value based score measuring the likelihood that the observed kinase statistic is real (not just sample noise). It’s calculated by permuting samples 500 times and asking “could this kinase fold change happen by chance?” A high Significance Score means a high probability that the kinase is differentially active between Test and Control.
 
-* **Kinase Score (Median Final Score)**: the sum of the Significance Score and the Specificity Score. Kinases are ordered by this score. 
+* **Kinase Score (Median Final Score)**: the sum of the Significance Score and the Specificity Score. 
 
 
 ```{r include=any(c("splotf", "splots", "table", "tree") %in% c(params$kinase_analysis, params$kinase_analysis_old)), results ='asis'}
@@ -362,13 +362,15 @@ cat("* **Kinase Score Plot**, useful to identify the effect size and direction o
 ```
 
 ```{r include= "tree" %in% c(params$kinase_analysis, params$kinase_analysis_old), results='asis'}
-cat("* **Kinome Tree**, useful to group the kinases into phylogenetic families. The Coral Trees show all kinases above Kinase Score > ", params$fscore_thr, " and ", if(params$csUKA) "Specificity Score" else "Mean Specificity Score", " > ", params$spec_thr, ". You can also generate and fine tune your own [Coral Trees](http://phanstiel-lab.med.unc.edu/CORAL/).")
+thr_parts <- c(if(params$fscore_thr != 0) paste("Kinase Score >", params$fscore_thr), if(params$spec_thr != 0) paste(if(params$csUKA) "Specificity Score" else "Mean Specificity Score", ">", params$spec_thr))
+thr_phrase <- if(length(thr_parts) > 0) paste0(" above ", paste(thr_parts, collapse = " and ")) else ""
+cat(paste0("* **Kinome Tree**, useful to group the kinases into phylogenetic families. The Coral Trees show all kinases", thr_phrase, ". You can also generate and fine tune your own [Coral Trees](http://phanstiel-lab.med.unc.edu/CORAL/)."))
 ```
 
 Results are provided as Excel (csv) files (Data tables/UKA_PTK or UKA_STK). The column `r if(params$csUKA) "Final Score" else "Median Final Score"` (= Kinase Score) is used for the ranking, thus enabling selection of kinases above the default threshold (Kinase Score > 1.3) or a stricter threshold.
-For more details of the algorithm and the scores, refer to the [UKA Flyer](https://pamgene.com/wp-content/uploads/2024/08/Flyer_PamGene-Upstream-Kinase-Analysis-Tool.pdf). 
+For more details of the algorithm and the scores, refer to the [UKA Flyer](https://pamdx.com/wp-content/uploads/2024/08/Flyer_PamGene-Upstream-Kinase-Analysis-Tool.pdf). 
 
-A general guideline below can be used to infer biological interpretation from the UKA results. PamGene can support and discuss these approaches.
+A general guideline below can be used to infer biological interpretation from the UKA results. PamDx can support and discuss these approaches.
 
 1. Use the UKA tool to give a ranked predicted list of kinases
 2. Select top kinase(s) based on:
@@ -417,7 +419,7 @@ data.frame("Deliverable" = c("Excel tables with all data: DATA FILES folder", "W
                              "Volcano plots", "All figures in Report: Volcano plots and Heatmaps of significant peptides.", 
                              "See Supplement end: Tools for biological interpretation, and Suggestions for validating results. Upon request, and confidential clause, not for distribution: UKA Database."),
           "Top kinases" = c("Filenames starting with UKA.", 
-                            paste0("Top 10 significant (", ifelse(params$csUKA, "Final Score", "Median Final Score"), " > ", params$fscore_thr, " and ", ifelse(params$csUKA, "Specificity Score", "Mean Specificity Score"), " > ", params$spec_thr, ") kinases with differential activity in Test vs Control."), 
+                            { thr_parts <- c(if(params$fscore_thr != 0) paste(ifelse(params$csUKA, "Final Score", "Median Final Score"), ">", params$fscore_thr), if(params$spec_thr != 0) paste(ifelse(params$csUKA, "Specificity Score", "Mean Specificity Score"), ">", params$spec_thr)); if(length(thr_parts) > 0) paste0("Top 10 significant (", paste(thr_parts, collapse = " and "), ") kinases with differential activity in Test vs Control.") else "Top 10 kinases with differential activity in Test vs Control." },
                             "Bar plots of Top 20 kinases regardless of cut-off, coloured by family / specificity scores;  Tables of Top 10 kinases regardless of cut-off; Coral kinome trees of significant kinases.", 
                             "All figures in Report", "")
           ) %>% flextable() %>% theme_box() %>%
@@ -461,6 +463,9 @@ Pathway and network analysis tools:
 
 The [Protein Atlas](https://www.proteinatlas.org/) is useful to verify biological context of a kinase hit. (E.g.: is LCK expressed in endothelial cells?)
 
+The [Dark Kinome](https://darkkinome.org/data) provides information about not-well-studied kinases (network, expression, pathways, assays to study).
+
+
 To overlap the top hits across different comparisons (e.g. T1 vs C, T2 vs C, etc.) you can use [Venny](https://bioinfogp.cnb.csic.es/tools/venny/).
 
 
@@ -471,7 +476,7 @@ To validate results, we recommend selecting kinases that consistently appear wit
 
 We recommend selecting kinases for validation rather than phosphosites. The reasons:
 
-1.	PamGene analysis identifies activated kinases in the lysate by detecting phosphorylation of their targets (phosphosites) on the PamChip. It is possible that targets are not present in the lysate in their native form, but the predicted kinase is present. 
+1.	PamDx analysis identifies activated kinases in the lysate by detecting phosphorylation of their targets (phosphosites) on the PamChip. It is possible that targets are not present in the lysate in their native form, but the predicted kinase is present. 
 
 2.	Phosphorylation by a kinase on a certain phosphosite can have different outcomes. For example, induction or inhibition of the affected protein(s). 
 
@@ -479,11 +484,11 @@ We recommend selecting kinases for validation rather than phosphosites. The reas
 *	To validate that the kinase activity is upregulated in Test vs Control, select antibodies specific for phosphosites on the kinase that lead to induction of the kinase activity.
 *	To validate that the kinase activity is downregulated in Test vs Control: choose antibodies specific for phosphosites on the kinase that lead to inhibition of the kinase activity.
 
-Sites such as Uniprot and PhosphoSitePlus can help in choosing the specific phosphosites or PamGene can help identifying such phosphosites on request, as an additional service.
+Sites such as Uniprot and PhosphoSitePlus can help in choosing the specific phosphosites or PamDx can help identifying such phosphosites on request, as an additional service.
 
-4.	If the approach to validate a kinase is not possible, validation of downstream phosphosites activated by the kinase can be performed. PamGene can help identifying such phosphosites on request.
+4.	If the approach to validate a kinase is not possible, validation of downstream phosphosites activated by the kinase can be performed. PamDx can help identifying such phosphosites on request.
 
-You can find more information [here](https://pamgene.com/wp-content/uploads/2020/09/Flyer-Confirming-PamChip-Data.pdf).
+You can find more information [here](https://pamdx.com/wp-content/uploads/2020/09/Flyer-Confirming-PamChip-Data.pdf).
 
 
 # References

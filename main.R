@@ -17,8 +17,8 @@ if (!dir.exists("temp")){
 }
 
 date_str <- format(Sys.Date(), "%y%m%d")
-main_report_file <- paste0("01_REPORTS/01_MainReport_PamGene_", date_str, ".docx")
-supplement_file <- paste0("01_REPORTS/02_ReportSupplement_PamGene_", date_str, ".docx")
+main_report_file <- paste0("01_REPORTS/01_MainReport_PamDx_", date_str, ".docx")
+supplement_file <- paste0("01_REPORTS/02_ReportSupplement_PamDx_", date_str, ".docx")
 
 rmarkdown::render("01_MainReport.Rmd", 
                   params = yaml::read_yaml("./params.yml"),

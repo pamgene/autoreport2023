@@ -77,7 +77,7 @@ ui <- fluidPage(
             )
         ),
         hr(),
-        sprintf("PamGene Automated Report Version %s", APP_VERSION),
+        sprintf("PamDx Automated Report Version %s", APP_VERSION),
         br(),
         br()
     )
