@@ -1,6 +1,6 @@
 FROM rocker/r-ver:4.1.0
 
-LABEL maintainer="Dora Schuller <dschuller@pamdx.com>"
+LABEL maintainer="Dora Schuller <dschuller@pamgene.com>"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # sudo \
