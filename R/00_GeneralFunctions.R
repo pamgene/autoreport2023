@@ -160,6 +160,22 @@ process_uka_allvsall <- function(files, csUKA, folder, counter = 0) {
 
   for (f in files_to_process) {
     uka <- read_delim(f, show_col_types = FALSE) %>% clean_tercen_columns()
+
+    if ("metadata" %in% colnames(uka)) {
+      metadata_string <- uka$metadata[1]  # identical across rows
+  
+      metadata_df <- metadata_string %>% 
+        strsplit(";") %>% unlist() %>%
+        strsplit("=") %>%
+        lapply(function(x) data.frame(parameter = x[1], value = x[2])) %>%
+        bind_rows()
+  
+      write_csv(metadata_df, paste0("02_DATA/", tools::file_path_sans_ext(basename(f)), "_parameters.csv"))
+  
+      # remove metadata column before further processing
+      uka <- uka %>% select(-metadata)
+    }
+
     uka_important_cols <- uka %>% 
       select(any_of(c('Final score rank', 'Supergroup', 'Test Condition',	'contrast',	
                     'Sgroup_contrast',	'Kinase Name',	'Kinase Uniprot ID',	
@@ -167,8 +183,8 @@ process_uka_allvsall <- function(files, csUKA, folder, counter = 0) {
                     cols$finalscore_col, cols$sig_col, cols$spec_col,	
                     cols$kinstat_col, cols$pepsetsize_col)))
     # write this cleaned version to the output of 99_Saved_plots
-    write_csv(uka, paste0("02_DATA/", tools::file_path_sans_ext(basename(f)), "_all_columns.", tools::file_ext(f)))
-    write_csv(uka_important_cols, paste0("02_DATA/", basename(f) ))
+    write_csv(uka, paste0("02_DATA/", tools::file_path_sans_ext(basename(f)), "_all_columns.csv"))
+    write_csv(uka_important_cols, paste0("02_DATA/", tools::file_path_sans_ext(basename(f)), ".csv"))
 
     if ("Sgroup_contrast" %in% colnames(uka)) {
       uka <- uka %>% dplyr::rename('Comparison' = 'Sgroup_contrast')

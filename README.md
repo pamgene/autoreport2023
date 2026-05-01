@@ -17,36 +17,40 @@ docker run -dp 5050:5050 autoreport
 Logs of issues and feature requests found [here](https://pamgenecom.sharepoint.com/sites/Tercendev/SitePages/ProjectHome.aspx).
 
 
-## Deployment to reagentdb:
+## Manual deployment to reagentdb:
 
-1. version as vx.x.x. 
-The Github Actions workflow builds and pushes the new Docker image on Dockerhub under pamgene/autoreport2023.
+1. version as x.x.x. 
+The Github Actions workflow builds and pushes the new Docker image to ghcr.io.
 
-2. Update image on the reagentdb manually:
+2. connect to reagentdb
 
-2/1. connect to reagentdb
-
-2/2. stop running autoreport container and delete image
+3. list containers
 ```
 docker ps
-docker rm -f <container id>
-
-docker image ls
-docker image rm <image id>
-```
-2/3. Pull image from dockerhub
-```
-docker pull pamgene/autoreport2023:latest
-```
-2/4. Run 
-```
-docker run -dp 5050:5050 --restart unless-stopped pamgene/autoreport2023:latest
 ```
 
-Before stopping container, check activity:
+4. Before stopping container, check activity:
 ```
 docker logs --since 10m <container id>
 ```
 
+5. Stop running autoreport container and delete image
+```
+docker rm -f <container id>
+docker image ls
+docker image rm <image id>
+```
+
+6. Pull image from ghcr
+```
+docker pull ghcr.io/pamgene/autoreport2023:latest
+```
+
+7. Run 
+```
+docker run -dp 5050:5050 --restart unless-stopped ghcr.io/pamgene/autoreport2023:latest
+```
+
+
 # Maintainer
-Dora Schuller 
+Dora Schuller, dschuller@pamdx.com
