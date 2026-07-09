@@ -147,10 +147,8 @@ if (is.null(params$normalizations)) {
     cat("* ComBat Correction\n\n")
   }
   if ("vsn" %in% params$normalizations) {
-    cat("**VSN** [@huber_variance_2002]: In log-transformed data, variance increases with decreasing signal mean. This means that a certain log fold change is more significant for high-signal phosphosites (low variance) than for low-signal phosphosites (high variance). VSN adresses this by rendering the variance independent of the mean, thereby facilitating the discovery of significant phosphosites with low signal intensities. It also enables comparison of large sample sets, e.g. multiple PamStation runs. 
-    VSN normalization has two steps:\n
-1. Affine transformation – centers and scales the data. This results in comparisons based on relative changes - deviations from the overal mean - rather than absolute values. For example, in a sample with higher overal kinase activity than control, VSN transformation results in kinases with above- and below-average activity. In a volcano-plot this shows significant peptides with both negative and positive fold change, with the most positive indicating key drivers.\n
-2. Log transformation (log-equivalent transformation).\n\n")
+    cat("**VSN** [@huber_variance_2002]: VSN corrects for overall differences in signal intensity between samples. When samples differ mainly in their overall signal, VSN reduces this variance. This makes it possible to analyze the data in terms of activities that are relatively high or low compared to the overall signal intensity, rather than absolute differences driven by global intensity shifts.
+VSN also stabilizes the variance across the signal intensity range—similar to a log transformation, but without the instabilities near zero signal. At higher signal values, VSN-transformed data approximates log-transformed data. VSN reveals relative differences compared to the data mean, not absolute differences. VSN is used as a default when different biological entities are compared or when high variance arises from global effects between samples.\n\n")
   }
   if ("combat" %in% params$normalizations) {
     cat("**ComBat correction** [@johnson_adjusting_2007; @chen_removing_2011]: ComBat is a batch effect correction method. Batch effects are systematic technical effects due to variabilities in time, place, and materials. These effects can reduce the accuracy of the results, thus they have to be counteracted. ComBat corrects for systematic biases (e.g., differences between PamStation runs, PamChips, or replicates). ComBat correction is equivalent to Z-score scaling per batch, but the scaling parameters (mean/sd) are estimated using an empirical Bayes approach, which effectively reduces the noise associated with applying the correction.\n\n")
@@ -411,13 +409,13 @@ if (nrow(kinase_files) > 0) {
 # Report information table
 
 ```{r report information table}
-data.frame("Deliverable" = c("Excel tables with all data: DATA FILES folder", "What’s in Main Report", 
+data.frame("Deliverable" = c("Excel tables with all data: DATA folder", "What’s in Main Report", 
                              "What’s in Supplement", "Additional figures in folders", 
                              "Additional information for data analysis and interpretation"),
           "Top peptides" = c("Filenames starting with Limma or TT (=T-Test) or MTvC (Anova-Dunnett test).", 
                              "QC assessment; Normalizations; Number of significant peptides (p < 0.05) with differential phosphorylation in Test vs Control.",
                              "Volcano plots", "All figures in Report: Volcano plots and Heatmaps of significant peptides.", 
-                             "See Supplement end: Tools for biological interpretation, and Suggestions for validating results. Upon request, and confidential clause, not for distribution: UKA Database."),
+                             "Explore pathways and networks with online tools (see tutorial link in the MainReport/Conclusion). Upon request, and confidential clause, not for distribution: UKA Database."),
           "Top kinases" = c("Filenames starting with UKA.", 
                             { thr_parts <- c(if(params$fscore_thr != 0) paste(ifelse(params$csUKA, "Final Score", "Median Final Score"), ">", params$fscore_thr), if(params$spec_thr != 0) paste(ifelse(params$csUKA, "Specificity Score", "Mean Specificity Score"), ">", params$spec_thr)); if(length(thr_parts) > 0) paste0("Top 10 significant (", paste(thr_parts, collapse = " and "), ") kinases with differential activity in Test vs Control.") else "Top 10 kinases with differential activity in Test vs Control." },
                             "Bar plots of Top 20 kinases regardless of cut-off, coloured by family / specificity scores;  Tables of Top 10 kinases regardless of cut-off; Coral kinome trees of significant kinases.", 
@@ -429,66 +427,6 @@ data.frame("Deliverable" = c("Excel tables with all data: DATA FILES folder", "W
     set_header_labels(Deliverable = "Deliverable", Top.peptides = "Top peptides", Top.kinases = "Top kinases")
 
 ```
-
-\newpage
-# Tools for biological interpretation
-
-For biological interpretation, we provide information here about pathway and network analysis tools. Refer to the Results Data Tables provided separately.
-For a specific comparison you can use:
-
-1. Phosphosite level data: we suggest to combine the PTK and STK significant results. Use the proteins mapped to phosphosites (in the “_enriched” files). Since multiple phosphosites can map to one protein, use their mean fold change. (Significant phosphosites: p value<0.05; or set your own more/ less stringent cut-off). 
-
-2. Kinase level data: We suggest to combine the PTK and STK significant kinases (`r if(params$csUKA) "Final score" else "Median Final score"` >1.3; or set your own more/ less stringent cut-off). Effect direction and size: Use `r if(params$csUKA) "Kinase Statistic" else "Median Kinase Statistic"`. 
-
-3. Combine (1) and (2) into one table, with a column for ID (e.g. Gene name or UniprotID), and a column for the LFC values (from (1)=LFC; From (2)=`r if(params$csUKA) "Kinase Statistic" else "Median Kinase Statistic"`) and save as a txt file. When there is an overlap between kinases and the proteins mapped to phosphosites, we suggest to use kinase data. 
-An example dataset of significant proteins and kinases:
-
-
-| Comparison | UniprotID | LFC  | from        |
-|------------|-----------|------|-------------|
-| T1 vs C    | P22681    | -0.4 | phosphosite |
-| T1 vs C    | P13805    | 1.6  | kinase      |
-| T1 vs C    | P07947    | 0.2  | kinase      |
-
-Pathway and network analysis tools:
-
-|  Tool                                              | Data input | Description                                                                            |
-|----------------------------------------------------|------------|----------------------------------------------------------------------------------------|
-| [Metascape](https://metascape.org/)                | ID         | Pathway analysis tool. Outputs non-redundant pathways.                                 |
-| [Paintomics](https://paintomics.uv.es/)           | ID + LFC   | ID should be gene name or entrezid. Refer to the resources for the exact data format.  |
-| [G-Profiler](https://biit.cs.ut.ee/gprofiler/gost) | ID         | Pathway analyis tool.                                                                  |
-| [EnrichR](https://maayanlab.cloud/Enrichr/)        | ID         | Pathway analyis tool.                                                                  |
-| [STRING](https://string-db.org/)                   | ID         | Network analysis tool.                                                                 |
-| [Lomics](https://lomics.ai/)                       | Research question | AI-based tool that gives potential pathways and pathway members upon a question.  |
-
-The [Protein Atlas](https://www.proteinatlas.org/) is useful to verify biological context of a kinase hit. (E.g.: is LCK expressed in endothelial cells?)
-
-The [Dark Kinome](https://darkkinome.org/data) provides information about not-well-studied kinases (network, expression, pathways, assays to study).
-
-
-To overlap the top hits across different comparisons (e.g. T1 vs C, T2 vs C, etc.) you can use [Venny](https://bioinfogp.cnb.csic.es/tools/venny/).
-
-
-\newpage
-# Suggestions for validating results
-
-To validate results, we recommend selecting kinases that consistently appear with high Final and Specificity Scores in experiments carried out with at least 3 or 6 replicates per condition for cell lines or primary cell cultures respectively.
-
-We recommend selecting kinases for validation rather than phosphosites. The reasons:
-
-1.	PamDx analysis identifies activated kinases in the lysate by detecting phosphorylation of their targets (phosphosites) on the PamChip. It is possible that targets are not present in the lysate in their native form, but the predicted kinase is present. 
-
-2.	Phosphorylation by a kinase on a certain phosphosite can have different outcomes. For example, induction or inhibition of the affected protein(s). 
-
-3.	To validate predicted kinases, as one of the methods, we suggest to carry out the following experiments with Western blot, using both Test and Control lysates:
-*	To validate that the kinase activity is upregulated in Test vs Control, select antibodies specific for phosphosites on the kinase that lead to induction of the kinase activity.
-*	To validate that the kinase activity is downregulated in Test vs Control: choose antibodies specific for phosphosites on the kinase that lead to inhibition of the kinase activity.
-
-Sites such as Uniprot and PhosphoSitePlus can help in choosing the specific phosphosites or PamDx can help identifying such phosphosites on request, as an additional service.
-
-4.	If the approach to validate a kinase is not possible, validation of downstream phosphosites activated by the kinase can be performed. PamDx can help identifying such phosphosites on request.
-
-You can find more information [here](https://pamdx.com/wp-content/uploads/2020/09/Flyer-Confirming-PamChip-Data.pdf).
 
 
 # References

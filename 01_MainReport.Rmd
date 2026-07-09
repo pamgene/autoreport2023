@@ -146,11 +146,12 @@ The Kinase dotplots below show the specificity (`r if(params$csUKA) "Specificity
 \newpage
 # Conclusions
 
-Further insights into pathway analysis and networks could be interesting.
+`r if ("vsn" %in% params$normalizations) paste0("VSN normalization was applied therefore results reveal differences relative to the data average.")`
 
-Free online tutorials for publicly available pathway analysis tools are provided here: https://pamdx.com/ps12/
+Explore pathways and networks with online tools. Tutorials are available [here](https://pamgene.github.io/PamGene_data_analysis_guide/PamDx%20methods/4.%20Further%20insights%20to%20PamDx%20data/). 
 
-To validate results, refer to the guideline in the Report Supplement Section 3.
+
+To validate results, refer to the guideline [here](https://pamgene.github.io/PamGene_data_analysis_guide/PamDx%20methods/4.%20Further%20insights%20to%20PamDx%20data/#suggestions-for-validating-results-with-western-blot). 
 
 DISCLAIMER:
 Support for the analysis of this project is provided for a period of 1 year. Please note that PamDx continuously improves its products and software. As a result, future projects may be conducted using updated versions, and reanalysis of existing data with newer methods may incur additional costs. In addition, the analysis of new samples originating from the same experiment at a later stage requires prior consultation and careful planning together with PamDx. Integration of such new data with the current project may be complex and could lead to additional charges.
