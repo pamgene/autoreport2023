@@ -1,4 +1,4 @@
-APP_VERSION <- "v1.13"
+APP_VERSION <- "v1.14"
 
 library(shiny)
 library(sortable)
@@ -30,12 +30,12 @@ ui <- fluidPage(
                 radioButtons("csUKA", "Use csUKA Analysis", choices = c("Yes" = "TRUE", "No" = "FALSE"), selected = "TRUE"),
                 numericInput("fscore_thr", "Final Score threshold", 1.3, 0, 10, step = 0.1),
                 numericInput("spec_thr", "Specificity Score threshold", 0.7, 0, 10, step = 0.1),
-                helpText("Score thresholds affect: main report top kinase table, coral tree, text."),
-                checkboxGroupInput("normalizations", "Normalizations", choices = c("VSN" = "vsn", "ComBat Correction" = "combat")),
+                helpText("Score thresholds affect: main report top kinase table, coral tree dotsize, text."),
                 radioButtons("signal_heatmap", "Include Overall Signal Heatmap Text", choices = c("Yes" = "yes", "No" = "no")),
                 checkboxGroupInput("heatmap", "Significant Peptide Heatmap", choices = c("Yes" = "heatmap")),
-                helpText("The coral tree dotsize comes from the Specificity score."),
-                checkboxGroupInput("kinase_analysis", "Kinase Analysis", 
+                numericInput("psite_p_thr", "Phosphosite significance p-value threshold", 0.05, min = 0, max = 1, step = 0.001),
+                helpText("Affects: main report phosphosite analysis table, Supplement peptide volcano/heatmap."),
+                checkboxGroupInput("kinase_analysis", "Kinase Analysis",
                                    choices = c("Coral Tree" = "tree")),
                 helpText("The below outputs are deprecated and should be only used when necessary - not as default!"),
                 checkboxGroupInput("kinase_analysis_old", "Deprecated Kinase outputs", 
@@ -50,9 +50,10 @@ ui <- fluidPage(
                                  numericInput("coral_min", "Coral KS min", -5, -30, 30),
                                  numericInput("coral_max", "Coral KS max", 5, -30, 30)
                 ),
-                radioButtons("xax_scale", "Same X axis for all score plots", 
+                radioButtons("xax_scale", "Same X axis for all score plots",
                              choices = c("No" = "no", "Yes" = "yes")),
-                textInput("qc_cv_factor", "Factor Used for CV Calculation"),
+                checkboxGroupInput("normalizations", "Normalizations-BioNav input", choices = c("VSN" = "vsn", "ComBat Correction" = "combat")),
+                helpText("Only used for BioNavigator QC files. For Tercen QC files, normalization is detected automatically from the uploaded files."),
                 fluidRow(
                   actionButton("save", "Save Parameters", class = "btn-lg btn-primary"),
                   disabled(actionButton("knit", "Knit Report", class = "btn-lg btn-success")),
@@ -111,7 +112,6 @@ server <- function(input, output, session) {
     updateTextAreaInput(session, "comparisons", value = params_list$comparisons)
     updateCheckboxGroupInput(session, "normalizations", selected = params_list$normalizations)
     updateRadioButtons(session, 'stk_qc_method', selected = params_list$`stk_qc_method`)
-    updateTextInput(session, "qc_cv_factor", value = params_list$`qc_cv_factor`)
     updateCheckboxGroupInput(session, "heatmap", selected = ifelse(is.null(params_list$`phosphosite_heatmap`), character(0), "heatmap"))
     updateCheckboxGroupInput(session, "kinase_analysis", selected = params_list$`kinase_analysis`)
     updateCheckboxGroupInput(session, "kinase_analysis_old", selected = params_list$`kinase_analysis_old`)
@@ -119,10 +119,19 @@ server <- function(input, output, session) {
     updateRadioButtons(session, 'coral_ks_thrs', selected = params_list$`coral_ks_thrs`)
     updateNumericInput(session, "fscore_thr", selected = params_list$`fscore_thr`)
     updateNumericInput(session, "spec_thr", selected = params_list$`spec_thr`)
+    psite_p_thr_val <- params_list$`psite_p_thr`
+    if (is.null(psite_p_thr_val)) psite_p_thr_val <- 0.05
+    updateNumericInput(session, "psite_p_thr", value = psite_p_thr_val)
     updateRadioButtons(session, "datatype", selected = params_list$datatype)
   }
 
   save_params <- function() {
+    # Keep the phosphosite p-value threshold inside a valid p-value range, at most 3 decimals.
+    psite_p_thr <- suppressWarnings(as.numeric(input$`psite_p_thr`))
+    if (is.na(psite_p_thr)) psite_p_thr <- 0.05
+    psite_p_thr <- round(min(max(psite_p_thr, 0), 1), 3)
+    updateNumericInput(session, "psite_p_thr", value = psite_p_thr)
+
     params <- list(
             "author" = input$author,
             "date" = format(input$date, "%B %d, %Y"),
@@ -130,7 +139,6 @@ server <- function(input, output, session) {
             "comparisons" = input$comparisons,
             "normalizations" = input$normalizations,
             "stk_qc_method" = input$`stk_qc_method`,
-            "qc_cv_factor" = input$`qc_cv_factor`,
             "signal_heatmap" = input$`signal_heatmap`,
             "phosphosite_heatmap" = input$heatmap,
             "kinase_analysis" = input$`kinase_analysis`,
@@ -138,6 +146,7 @@ server <- function(input, output, session) {
             "csUKA" = as.logical(input$csUKA),
             "fscore_thr" = input$`fscore_thr`,
             "spec_thr" = input$`spec_thr`,
+            "psite_p_thr" = psite_p_thr,
             "coral_ks_thrs" = input$`coral_ks_thrs`,
             "coral_min" = input$`coral_min`,
             "coral_max" = input$`coral_max`,

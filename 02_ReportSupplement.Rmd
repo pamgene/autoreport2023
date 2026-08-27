@@ -3,7 +3,6 @@ title: "PamDx Report Supplement"
 params:
   author: "me"
   date: "January 1st, 1970"
-  qc_cv_factor: NULL
   stk_qc_method: NULL
   signal_heatmap: NULL
   normalizations: NULL
@@ -12,6 +11,7 @@ params:
   score_plot_color: NULL
   fscore_thr: NULL
   spec_thr: NULL
+  psite_p_thr: NULL
   csUKA: NULL
   coral_ks_thrs: NULL
   coral_min: NULL
@@ -26,7 +26,7 @@ date: "`r params$date`"
 always_allow_html: true
 output:
   officedown::rdocx_document:
-    reference_docx: "ref/report_ref.docx"
+    reference_docx: "ref/report_ref_pamdx.docx"
     toc: yes
     fig_caption: true
     number_sections: true
@@ -69,8 +69,8 @@ knitr::include_graphics("./img/AssayPrinciple.png")
 
 The general workflow for data analysis is shown below (Figure 2), which was used to derive the results described in the Report and this Supplement, with details following.
 
-```{r analysis-workflow, message=FALSE, fig.align='center', fig.cap='Data analysis workflow. Parallelograms indicate in- and outputs. Dashed lines indicate optional outputs. Basic Processing (orange box) refers to Section 2.2 of this supplement. Phosphosite Analysis (green box) refers to Section 2.3. Kinase Analysis (blue box) refers to Section 2.4. The output of Phosphosite Analysis and Kinase Analysis can be used for further biological interpretation (see also Section 2.5).', fig.width=6.3, fig.height=6.3}
-knitr::include_graphics("./img/AnalysisWorkflow.png")
+```{r analysis-workflow, message=FALSE, fig.align='center', fig.cap='Data analysis workflow.', fig.width=6.3, fig.height=2.68}
+knitr::include_graphics("./img/AnalysisWorkflow_2026.png")
 ```
 
 \newpage
@@ -89,18 +89,43 @@ Low exposure times are useful to capture high intensity signals, and likewise hi
 
 ### Quality Control
 
+```{r qc setup}
+qc_files <- read_qc_dir()
+if (nrow(qc_files) > 0) {
+  qc_assay_types <- qc_files %>% pull(Assay_Type)
+  qc_parsed <- parse_qc(qc_files, params$datatype)
+  show_variability_section <- should_show_variability_section(qc_files, qc_parsed$variability_table)
+} else {
+  qc_assay_types <- ""
+  show_variability_section <- FALSE
+}
+
+# Auto-detected from the QC files for tercen data; falls back to the manual
+# "Normalizations" UI param otherwise (bionav, or no QC files uploaded yet).
+effective_normalizations <- get_effective_normalizations(qc_files, params$datatype, params$normalizations)
+```
+
 The quality of the data was assessed using criteria shown in Table 1. The QC results for the data in this study are shown in Table 2.
 
-Three criteria were checked using a flag system is used to indicate a quality level:
-
-* Phosphosite signal strength (i.e., the 99th percentile of S100 AU (arbitrary units). 
-
-* Phosphosite number control (i.e., how many phosphosites passed quality control).
-
-* Sample quality control (i.e., Replicate CV (coefficient of variance); An example of technical replicate is 1 sample lysate on 3+ arrays; An example of biological replicate is 1 sample lysate per array).
+```{r, echo=FALSE, results='asis'}
+if (nrow(qc_files) > 0 && any(qc_files$Replicate_Type == "TR")) {
+  cat("Three criteria were checked using a flag system is used to indicate a quality level:\n\n")
+  cat("* Phosphosite signal strength (i.e., the 99th percentile of S100 AU (arbitrary units).\n\n")
+  cat("* Phosphosite number control (i.e., how many phosphosites passed quality control).\n\n")
+  cat("* Data variability (i.e., the median within-condition peptide signal standard deviation (SD), based on technical replicates).\n\n")
+  cat("Each criterion is individually rated good, fair, or poor (see Table 1).\n\n")
+  cat("The overall QC flag is: good if all three criteria are individually good; poor if no criterion is good and at least two criteria are poor; fair in every other case.")
+} else {
+  cat("Two criteria were checked using a flag system is used to indicate a quality level:\n\n")
+  cat("* Phosphosite signal strength (i.e., the 99th percentile of S100 AU (arbitrary units).\n\n")
+  cat("* Phosphosite number control (i.e., how many phosphosites passed quality control).\n\n")
+  cat("Each criterion is individually rated good, fair, or poor (see Table 1).\n\n")
+  cat("The overall QC flag is: good only if both criteria are individually good; poor only if both criteria are individually poor; fair for any other combination.")
+}
+```
 
 ```{r ref qc table}
-render_ref_qc_table()
+render_ref_qc_table(qc_files)
 ```
 
 **Number of QC-passed phosphosites (PTK)**
@@ -123,12 +148,27 @@ if (params$stk_qc_method == "LOD") {
 
 
 ```{r qc table}
-qc_files <- read_qc_dir()
 if (nrow(qc_files) > 0) {
-  qc_assay_types <- qc_files %>% pull(Assay_Type)
-  make_qc_table(qc_files, params$qc_cv_factor, params$datatype)
-} else {
-  qc_assay_types <- ""
+  render_qc_results_table(qc_parsed$qc_table)
+}
+```
+
+```{r, echo=FALSE, results='asis'}
+if (show_variability_section) {
+  cat('**Data Variability Indicator**\n\n')
+  cat("Alongside the QC flag, data variability is reported across three tiers (low/medium/high, Table 3). Lower variation enables detection of smaller effect sizes from the covariates of interest. With high variability a larger sample size may be required to detect differentially active phosphosites or kinases reliably. The Data Variability Indicator uses median peptide standard deviation (SD) per condition (e.g. test, control). Table 4 reports the range (minimum – maximum) of this median SD across all conditions and normalizations in the study.")
+}
+```
+
+```{r variability ref table}
+if (show_variability_section) {
+  render_variability_ref_table(qc_parsed$variability_table)
+}
+```
+
+```{r variability table}
+if (show_variability_section) {
+  render_variability_table(qc_parsed$variability_table)
 }
 ```
 
@@ -136,21 +176,21 @@ if (nrow(qc_files) > 0) {
 ### Normalizations
 
 ```{r, echo=FALSE, results='asis'}
-if (is.null(params$normalizations)) {
-  cat("Log normalization was applied.")
+if (length(effective_normalizations) == 0) {
+  cat("Log2 transformation was applied.")
 } else {
   cat("In this study, the following normalization(s) has been applied:\n\n")
-  if ("vsn" %in% params$normalizations) {
+  if ("vsn" %in% effective_normalizations) {
     cat("* Variance Stabilizing Normalization (VSN)\n\n")
-  } 
-  if ("combat" %in% params$normalizations) {
+  }
+  if ("combat" %in% effective_normalizations) {
     cat("* ComBat Correction\n\n")
   }
-  if ("vsn" %in% params$normalizations) {
+  if ("vsn" %in% effective_normalizations) {
     cat("**VSN** [@huber_variance_2002]: VSN corrects for overall differences in signal intensity between samples. When samples differ mainly in their overall signal, VSN reduces this variance. This makes it possible to analyze the data in terms of activities that are relatively high or low compared to the overall signal intensity, rather than absolute differences driven by global intensity shifts.
-VSN also stabilizes the variance across the signal intensity range—similar to a log transformation, but without the instabilities near zero signal. At higher signal values, VSN-transformed data approximates log-transformed data. VSN reveals relative differences compared to the data mean, not absolute differences. VSN is used as a default when different biological entities are compared or when high variance arises from global effects between samples.\n\n")
+VSN also stabilizes the variance across the signal intensity range—similar to a log2 transformation, but without the instabilities near zero signal. At higher signal values, VSN-transformed data approximates log2-transformed data. VSN reveals relative differences compared to the data mean, not absolute differences. VSN is used as a default when different biological entities are compared or when high variance arises from global effects between samples.\n\n")
   }
-  if ("combat" %in% params$normalizations) {
+  if ("combat" %in% effective_normalizations) {
     cat("**ComBat correction** [@johnson_adjusting_2007; @chen_removing_2011]: ComBat is a batch effect correction method. Batch effects are systematic technical effects due to variabilities in time, place, and materials. These effects can reduce the accuracy of the results, thus they have to be counteracted. ComBat corrects for systematic biases (e.g., differences between PamStation runs, PamChips, or replicates). ComBat correction is equivalent to Z-score scaling per batch, but the scaling parameters (mean/sd) are estimated using an empirical Bayes approach, which effectively reduces the noise associated with applying the correction.\n\n")
   }
 }
@@ -160,7 +200,18 @@ VSN also stabilizes the variance across the signal intensity range—similar to 
 `r if (params$signal_heatmap != "yes") {"\\begin{comment}"}`
 ### Visual assessment of overall signal
 
-The basic processing steps as described above result in log2-transformed or VSN-normalized values (with or without ComBat) for each peptide (rows) and each array (columns). The heatmap(s) below provide an overview of samples and measurements. This view helps to indicate possible trends and outliers. Signals before normalization are provided separately and signals after normalization are shown below. 
+```{r, echo=FALSE, results='asis'}
+if ("vsn" %in% effective_normalizations & !"combat" %in% effective_normalizations) {
+  norm_desc <- "VSN-normalized values"
+} else if ("vsn" %in% effective_normalizations & "combat" %in% effective_normalizations) {
+  norm_desc <- "VSN-ComBat-normalized values"
+} else if (!"vsn" %in% effective_normalizations & "combat" %in% effective_normalizations) {
+  norm_desc <- "log2-ComBat-normalized values"
+} else {
+  norm_desc <- "log2-transformed values"
+}
+cat(paste0("The basic processing steps as described above result in ", norm_desc, " for each peptide (rows) and each array (columns). The heatmap(s) below provide an overview of samples and measurements. This view helps to indicate possible trends and outliers. Signals before normalization are provided separately and signals after normalization are shown below."))
+```
 
 ```{r, results='asis'}
 template <- "**Heatmap Overview - %s**"
@@ -170,14 +221,14 @@ for (assay_type in qc_assay_types) {
   cat("  \n")
   cat("  \n")
   
-  if ("vsn" %in% params$normalizations & !"combat" %in% params$normalizations){
+  if ("vsn" %in% effective_normalizations & !"combat" %in% effective_normalizations){
     cat("##### The heatmap shows VSN-normalized values of the integrated signal. Each row is a phosphosite and each column is a PamChip array. Rows are sorted by row mean and only include phosphosites which passed the QC.")
-  } else if ("vsn" %in% params$normalizations & "combat" %in% params$normalizations){
+  } else if ("vsn" %in% effective_normalizations & "combat" %in% effective_normalizations){
     cat("##### The heatmap shows VSN-ComBat-normalized values of the integrated signal. Each row is a phosphosite and each column is a PamChip array. Rows are sorted by row mean and only include phosphosites which passed the QC.")
-  } else if (!"vsn" %in% params$normalizations & "combat" %in% params$normalizations){
+  } else if (!"vsn" %in% effective_normalizations & "combat" %in% effective_normalizations){
     cat("##### The heatmap shows Log2-ComBat-normalized values of the integrated signal. Each row is a phosphosite and each column is a PamChip array. Rows are sorted by row mean and only include phosphosites which passed the QC.")
-  } else if (!"vsn" %in% params$normalizations & !"combat" %in% params$normalizations){
-    cat("##### The heatmap shows Log2-values of the integrated signal. Each row is a phosphosite and each column is a PamChip array. Rows are sorted by row mean and only include phosphosites which passed the QC.")
+  } else if (!"vsn" %in% effective_normalizations & !"combat" %in% effective_normalizations){
+    cat("##### The heatmap shows Log2-transformed values of the integrated signal. Each row is a phosphosite and each column is a PamChip array. Rows are sorted by row mean and only include phosphosites which passed the QC.")
   }
   cat("  \n")
 }
@@ -197,6 +248,7 @@ for (assay_type in qc_assay_types) {
 
 To identify significant differences between the conditions at the phosphosite level, the following statistical tests are used: 
 ```{r stats methods, echo=FALSE}
+psite_p_thr <- if (is.null(params$psite_p_thr)) 0.05 else params$psite_p_thr
 stats_files <- read_phosphosite_dir(datatype = params$datatype)
 if (nrow(stats_files) > 0) {
   assay_types <- stats_files %>% distinct(Assay_Type) %>% pull()
@@ -220,17 +272,17 @@ if ("Limma" %in% stats_files$Stats) {
 
 The following plot(s) show the results from the statistical tests:
 
-* Volcano plot, useful for an overview of the Test condition vs control. Volcano plots visualize the significance (y-axis, -log10(p value)) versus the effect size (x-axis, LFC or delta) of each test. Red dots are phosphosites that show significant difference compared to control (p<0.05, i.e. -log10(p)>1.3).
+* Volcano plot, useful for an overview of the Test condition vs control. Volcano plots visualize the significance (y-axis, -log10(p value)) versus the effect size (x-axis, LFC or delta) of each test. Red dots are phosphosites that show significant difference compared to control (p<`r psite_p_thr`, i.e. -log10(p)>`r format(round(-log10(psite_p_thr), 2), nsmall = 2)`).
 
 ```{r, echo=FALSE, results='asis'}
-if ("heatmap" %in% params$normalizations) {
+if ("heatmap" %in% params$phosphosite_heatmap) {
   cat("* Significant phosphosites (LFC or Scaled heatmaps) - provided separately.\n\n")
 }
 ```
 
 
 Results from the above tests are provided in Excel-readable format. 
-The phosphosite level statistical tests result in LFC and p-values for each Peptide sequence. Each sequence can have a > 90% similarity match with 1 or more proteins. Therefore the Report results folder contains additional [*_enriched.csv] files in the 02_DATA folder that contain annotation of Sequence, UniPROT ID and Primary Gene name. This is useful for biological interpretation or pathway and network analyses. The LFC and p-values are the same for each unique Peptide ID across the different matching proteins.
+The phosphosite level statistical tests result in LFC and p-values for each Peptide sequence. Each sequence can have a > 90% similarity match with 1 or more proteins. Therefore the Report results folder contains additional [*_enriched.csv] files in the 02_DATA/Extended data folder that contain annotation of Sequence, UniPROT ID and Primary Gene name. This is useful for biological interpretation or pathway and network analyses. The LFC and p-values are the same for each unique Peptide ID across the different matching proteins.
 
 
 \newpage
@@ -240,7 +292,7 @@ The phosphosite level statistical tests result in LFC and p-values for each Pept
 
 if(nrow(stats_files) > 0) {
   if ("MTvC" %in% stats_files$Stats) {
-    plot_list <- make_volcano_plots(stats_files, stats_type = "MTvC", datatype = params$datatype)
+    plot_list <- make_volcano_plots(stats_files, stats_type = "MTvC", datatype = params$datatype, p_thr = psite_p_thr)
     for (i in seq_along(plot_list)) {
       print(plot_list[[i]])
     }
@@ -253,7 +305,7 @@ if(nrow(stats_files) > 0) {
 if (nrow(stats_files) > 0) {
   if ("MTvC" %in% stats_files$Stats) {
     if ("heatmap" %in% params$`phosphosite_heatmap`) {
-      heatmaps <- make_heatmaps(stats_files, stats_type = "MTvC", datatype = params$datatype)
+      heatmaps <- make_heatmaps(stats_files, stats_type = "MTvC", datatype = params$datatype, p_thr = psite_p_thr)
     }
     # heatmaps are not printed in the report anymore - they are provided separately
     # if ("heatmap" %in% params$`phosphosite_heatmap`) {
@@ -272,7 +324,7 @@ if (nrow(stats_files) > 0) {
 
 if (nrow(stats_files) > 0) {
   if ("TT" %in% stats_files$Stats) {
-    plot_list <- make_volcano_plots(stats_files, stats_type = "TT", datatype = params$datatype)
+    plot_list <- make_volcano_plots(stats_files, stats_type = "TT", datatype = params$datatype, p_thr = psite_p_thr)
     for (i in seq_along(plot_list)) {
       print(plot_list[[i]])
       
@@ -288,7 +340,7 @@ if (nrow(stats_files) > 0) {
 if (nrow(stats_files) > 0) {
   if ("TT" %in% stats_files$Stats) {
     if ("heatmap" %in% params$`phosphosite_heatmap`) {
-      heatmaps <- make_heatmaps(stats_files, stats_type = "TT", datatype = params$datatype)
+      heatmaps <- make_heatmaps(stats_files, stats_type = "TT", datatype = params$datatype, p_thr = psite_p_thr)
     }
     # heatmaps are not printed in the report anymore - they are provided separately
     # if ("heatmap" %in% params$`phosphosite_heatmap`) {
@@ -307,7 +359,7 @@ if (nrow(stats_files) > 0) {
 
 if(nrow(stats_files) > 0) {
   if ("Limma" %in% stats_files$Stats) {
-    plot_list <- make_volcano_plots(stats_files, stats_type = "Limma", datatype = params$datatype)
+    plot_list <- make_volcano_plots(stats_files, stats_type = "Limma", datatype = params$datatype, p_thr = psite_p_thr)
     for (i in seq_along(plot_list)) {
       print(plot_list[[i]])
     }
@@ -320,7 +372,7 @@ if(nrow(stats_files) > 0) {
 if (nrow(stats_files) > 0) {
   if ("Limma" %in% stats_files$Stats) {
     if ("heatmap" %in% params$`phosphosite_heatmap`) {
-      heatmaps <- make_heatmaps(stats_files, stats_type = "Limma", datatype = params$datatype)
+      heatmaps <- make_heatmaps(stats_files, stats_type = "Limma", datatype = params$datatype, p_thr = psite_p_thr)
     }
   }
 }
@@ -366,7 +418,7 @@ cat(paste0("* **Kinome Tree**, useful to group the kinases into phylogenetic fam
 ```
 
 Results are provided as Excel (csv) files (Data tables/UKA_PTK or UKA_STK). The column `r if(params$csUKA) "Final Score" else "Median Final Score"` (= Kinase Score) is used for the ranking, thus enabling selection of kinases above the default threshold (Kinase Score > 1.3) or a stricter threshold.
-For more details of the algorithm and the scores, refer to the [UKA Flyer](https://pamdx.com/wp-content/uploads/2024/08/Flyer_PamGene-Upstream-Kinase-Analysis-Tool.pdf). 
+For more details of the algorithm and the scores, refer to the [online guide](https://pamgene.github.io/PamGene_data_analysis_guide/PamDx%20methods/3.%20Kinase%20Analysis/). 
 
 A general guideline below can be used to infer biological interpretation from the UKA results. PamDx can support and discuss these approaches.
 
@@ -413,7 +465,7 @@ data.frame("Deliverable" = c("Excel tables with all data: DATA folder", "What’
                              "What’s in Supplement", "Additional figures in folders", 
                              "Additional information for data analysis and interpretation"),
           "Top peptides" = c("Filenames starting with Limma or TT (=T-Test) or MTvC (Anova-Dunnett test).", 
-                             "QC assessment; Normalizations; Number of significant peptides (p < 0.05) with differential phosphorylation in Test vs Control.",
+                             paste0("QC assessment; Normalizations; Number of significant peptides (p < ", psite_p_thr, ") with differential phosphorylation in Test vs Control."),
                              "Volcano plots", "All figures in Report: Volcano plots and Heatmaps of significant peptides.", 
                              "Explore pathways and networks with online tools (see tutorial link in the MainReport/Conclusion). Upon request, and confidential clause, not for distribution: UKA Database."),
           "Top kinases" = c("Filenames starting with UKA.", 

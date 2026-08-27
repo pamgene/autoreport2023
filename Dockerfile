@@ -32,12 +32,25 @@ RUN addgroup --system app \
 
 WORKDIR /report
 
-COPY . .
+# Copy only the renv manifest/bootstrap first, so this layer (the slow one)
+# is cached across commits that don't touch dependencies, instead of being
+# invalidated by every source/code change.
+COPY .Rprofile renv.lock ./
+COPY renv/activate.R renv/settings.dcf renv/
 
 RUN chown app:app -R /report
 USER app
 
+# Use Posit's binary package snapshot for this image's distro (Ubuntu 20.04
+# "focal") so renv::restore() installs precompiled packages instead of
+# compiling ~150 packages from source.
+ENV RENV_CONFIG_REPOS_OVERRIDE https://packagemanager.posit.co/cran/__linux__/focal/latest
 RUN R -e 'renv::restore()'
+
+USER root
+COPY . .
+RUN chown app:app -R /report
+USER app
 
 EXPOSE 5050
 

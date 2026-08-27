@@ -3,7 +3,6 @@ date: July 29, 2023
 aim: ''
 comparisons: ''
 normalizations: ~
-qc_cv_factor: ''
 signal_heatmap: 'yes'
 phosphosite_heatmap: ~
 kinase_analysis: []
@@ -12,6 +11,7 @@ csUKA: false
 xax_scale: 'yes'
 fscore_thr: 1.3
 spec_thr: 0.0
+psite_p_thr: 0.05
 coral_ks_thrs: 'coral_auto'
 coral_min: -3
 coral_max: 3

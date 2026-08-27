@@ -1,0 +1,7 @@
+"Agg.Barcode","Agg.Row","Agg.ID","Agg.Supergroup","Agg.Test Condition","Agg.value"
+"BR1",1,"p1","Sgroup1","Test",4.0
+"BR2",1,"p1","Sgroup1","Test",4.2
+"BR3",1,"p1","Sgroup1","Test",4.4
+"BR1",1,"p2","Sgroup1","Test",5.0
+"BR2",1,"p2","Sgroup1","Test",5.4
+"BR3",1,"p2","Sgroup1","Test",5.8

@@ -8,6 +8,21 @@ clean_tercen_columns <- function(df) {
   return(df)
 }
 
+# Output data folder layout: the everyday, summarised files (cleaned UKA key-column
+# tables, cleaned Limma input) sit directly in 02_DATA/. The full "look at
+# everything" files - all-columns UKA tables, UKA run parameters, enriched
+# phosphosite tables - go into this subfolder so 02_DATA/ stays readable for the
+# common case. extended_data_path() builds a path there and creates the folder on
+# first use.
+EXTENDED_DATA_DIR <- "02_DATA/Extended data"
+
+extended_data_path <- function(filename) {
+  if (!dir.exists(EXTENDED_DATA_DIR)) {
+    dir.create(EXTENDED_DATA_DIR, recursive = TRUE, showWarnings = FALSE)
+  }
+  file.path(EXTENDED_DATA_DIR, filename)
+}
+
 get_column_names <- function(csUKA = FALSE) {
   if (csUKA) {
     list(
@@ -32,23 +47,43 @@ get_column_names <- function(csUKA = FALSE) {
 read_qc_dir <- function(folder = "01_Basic Processing/") {
   # will return df with files for easy processing
   files <- list.files(folder, pattern = ".txt$|.csv$", full.names = TRUE, include.dirs = FALSE)
-  
+
   if (length(files) == 0) {
     warning("No QC files")
     return(data.frame())
   }
-  
+
   dfs <- list()
   for (i in seq_along(files)) {
     file <- files[i]
-    
+
     file_base <- basename(file)
     file_base <- tools::file_path_sans_ext(file_base)
-    file_elements <- str_split(file_base, pattern = "_")
-    
-    assay_type <- file_elements[[1]][2]
-    
-    df <- tibble("Assay_Type" = assay_type, "qc_file" = file)
+    file_elements <- str_split(file_base, pattern = "_")[[1]]
+
+    assay_type <- file_elements[2]
+    # Filenames are expected as QC_<PTK|STK>[_<number>]_<TR|BR>[_<anything else>] - the
+    # TR/BR token doesn't have to be the last element (there can be extra descriptive
+    # text after it, but doesn't have to be). So look for "TR"/"BR" as an exact token
+    # anywhere in the underscore-split filename, not just at the end. Filenames with
+    # neither token (e.g. legacy QC_STK_LogCmb.csv) default to "BR".
+    replicate_type <- if ("TR" %in% file_elements) {
+      "TR"
+    } else if ("BR" %in% file_elements) {
+      "BR"
+    } else {
+      "BR"
+    }
+
+    # Only meaningful as a fallback when the file's own columns can't self-describe the
+    # normalization (a generic "value" column instead of logTransformed/identity/CmbCor)
+    # - see identify_value_columns(). NA for the normal case.
+    normalization_hint <- extract_normalization_hint(file_elements)
+
+    df <- tibble(
+      "Assay_Type" = assay_type, "qc_file" = file, "Replicate_Type" = replicate_type,
+      "Normalization_Hint" = normalization_hint
+    )
     dfs[[i]] <- df
   }
   output <- bind_rows(dfs)
@@ -170,7 +205,7 @@ process_uka_allvsall <- function(files, csUKA, folder, counter = 0) {
         lapply(function(x) data.frame(parameter = x[1], value = x[2])) %>%
         bind_rows()
   
-      write_csv(metadata_df, paste0("02_DATA/", tools::file_path_sans_ext(basename(f)), "_parameters.csv"))
+      write_csv(metadata_df, extended_data_path(paste0(tools::file_path_sans_ext(basename(f)), "_parameters.csv")))
   
       # remove metadata column before further processing
       uka <- uka %>% select(-metadata)
@@ -182,8 +217,8 @@ process_uka_allvsall <- function(files, csUKA, folder, counter = 0) {
                     'Kinase entrezid', 'entrezid', 'Kinase Group',	'Kinase Family', 
                     cols$finalscore_col, cols$sig_col, cols$spec_col,	
                     cols$kinstat_col, cols$pepsetsize_col)))
-    # write this cleaned version to the output of 99_Saved_plots
-    write_csv(uka, paste0("02_DATA/", tools::file_path_sans_ext(basename(f)), "_all_columns.csv"))
+    # cleaned full table -> Extended data subfolder; cleaned key-column table -> 02_DATA/ (same name as the upload)
+    write_csv(uka, extended_data_path(paste0(tools::file_path_sans_ext(basename(f)), "_all_columns.csv")))
     write_csv(uka_important_cols, paste0("02_DATA/", tools::file_path_sans_ext(basename(f)), ".csv"))
 
     if ("Sgroup_contrast" %in% colnames(uka)) {

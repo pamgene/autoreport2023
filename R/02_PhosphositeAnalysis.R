@@ -78,15 +78,15 @@ extract_phosphosite_data_mtvc_tercen <- function(filepath, assay_type) {
 ############ STRINGIFY PHOSPHOSITE DIRECTION ############
 #########################################################
 
-extract_direction_limma <- function(filepath, assay_type) {
+extract_direction_limma <- function(filepath, assay_type, p_thr = 0.05) {
   df <- extract_phosphosite_data_limma_tercen(filepath, assay_type)
-  
+
   output <- df %>%
     filter(!is.na(LogFC) & !is.na(P)) %>%
     group_by(comparison = Comparison) %>%
     summarise(
-      up = sum(LogFC > 0 & P < 0.05),
-      down = sum(LogFC < 0 & P < 0.05)
+      up = sum(LogFC > 0 & P < p_thr),
+      down = sum(LogFC < 0 & P < p_thr)
     ) %>%
     mutate(assay_type = assay_type, stats = "limma") %>%
     pivot_wider(names_from = assay_type, values_from = c(up, down))
@@ -94,21 +94,21 @@ extract_direction_limma <- function(filepath, assay_type) {
   return(output)
 }
 
-parse_limma <- function(stats_files, assay_types) {
+parse_limma <- function(stats_files, assay_types, p_thr = 0.05) {
   limma_rows <- stats_files %>% filter(Stats == "Limma")
   groups <- unique(limma_rows$Group)
-  
+
   dfs <- lapply(groups, function(group) {
     c_rows <- limma_rows %>% filter(Group == group)
-    
+
     if (length(assay_types) == 2) {
       c_ptk <- c_rows %>% filter(Assay_Type == "PTK") %>%
-        do(extract_direction_limma(.$File, .$Assay_Type))
+        do(extract_direction_limma(.$File, .$Assay_Type, p_thr = p_thr))
       c_stk <- c_rows %>% filter(Assay_Type == "STK") %>%
-        do(extract_direction_limma(.$File, .$Assay_Type))
+        do(extract_direction_limma(.$File, .$Assay_Type, p_thr = p_thr))
       df <- left_join(c_ptk, c_stk, by = c("comparison", "stats"))
     } else if (length(assay_types) == 1) {
-      df <- c_rows %>% do(extract_direction_limma(.$File, .$Assay_Type))
+      df <- c_rows %>% do(extract_direction_limma(.$File, .$Assay_Type, p_thr = p_thr))
     }
     
     return(df)
@@ -118,7 +118,7 @@ parse_limma <- function(stats_files, assay_types) {
 }
 
 
-extract_direction_tt <- function(filepath, comparison, assay_type, datatype, p_file = NULL) {
+extract_direction_tt <- function(filepath, comparison, assay_type, datatype, p_file = NULL, p_thr = 0.05) {
   # Extract data based on datatype
   if (datatype == "tercen") {
     df <- extract_phosphosite_data_tt_tercen(filepath, assay_type)
@@ -135,8 +135,8 @@ extract_direction_tt <- function(filepath, comparison, assay_type, datatype, p_f
       drop_na() %>%
       summarise(
         comparison = comparison,
-        up = sum((LogFC > 0) & (P < 0.05)),
-        down = sum((LogFC < 0) & (P < 0.05))
+        up = sum((LogFC > 0) & (P < p_thr)),
+        down = sum((LogFC < 0) & (P < p_thr))
       ) %>%
       rename_with(~ paste0(., "_", assay_type), c(up, down))
   } else {
@@ -144,8 +144,8 @@ extract_direction_tt <- function(filepath, comparison, assay_type, datatype, p_f
     df <- df %>%
       group_by(comparison = paste(Comparison, comparison, sep = " - ")) %>%
       summarise(
-        up = sum((LogFC > 0) & (P < 0.05)),
-        down = sum((LogFC < 0) & (P < 0.05))
+        up = sum((LogFC > 0) & (P < p_thr)),
+        down = sum((LogFC < 0) & (P < p_thr))
       ) %>%
       mutate(assay_type = assay_type, stats = "tt") %>%
       pivot_wider(names_from = assay_type, values_from = c(up, down))
@@ -156,18 +156,18 @@ extract_direction_tt <- function(filepath, comparison, assay_type, datatype, p_f
 }
 
 
-extract_direction_mtvc <- function(filepath, assay_type, group, datatype, p_file = NULL) {
+extract_direction_mtvc <- function(filepath, assay_type, group, datatype, p_file = NULL, p_thr = 0.05) {
   if (datatype == "tercen") {
     df <- extract_phosphosite_data_mtvc_tercen(filepath, assay_type)
   } else if (datatype == "bionav") {
     df <- extract_phosphosite_data_mtvc_bionav(filepath, p_file, assay_type)
   }
-  
+
   output <- df %>%
     drop_na() %>%
     group_by(Comparison, Assay_type) %>%
-    summarise(up = sum((LogFC > 0) & (P < 0.05)),
-              down = sum(LogFC < 0 & (P < 0.05)))
+    summarise(up = sum((LogFC > 0) & (P < p_thr)),
+              down = sum(LogFC < 0 & (P < p_thr)))
   
   if (!is.na(group)) {
     output <- output %>% mutate(Comparison = paste(group, Comparison, sep = " - "))
@@ -184,7 +184,7 @@ extract_direction_mtvc <- function(filepath, assay_type, group, datatype, p_file
 
 
 
-parse_mtvc <- function(stats_files, datatype, assay_types){
+parse_mtvc <- function(stats_files, datatype, assay_types, p_thr = 0.05){
   dfs <- list()
   mtvc_rows <- stats_files %>% filter(Stats == "MTvC")
   groups <- stats_files %>%
@@ -199,25 +199,25 @@ parse_mtvc <- function(stats_files, datatype, assay_types){
         if (length(assay_types) == 2){
           mtvc_ptk <- group_rows %>%
             filter(Assay_Type == "PTK") %>%
-            do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
+            do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file, p_thr = p_thr))
           mtvc_stk <- group_rows %>%
             filter(Assay_Type == "STK") %>%
-            do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
+            do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file, p_thr = p_thr))
           df <- left_join(mtvc_ptk, mtvc_stk, by = c("comparison", "stats"))
         } else if (length(assay_types) == 1){
-          df <- group_rows %>% do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file))
-        } 
+          df <- group_rows %>% do(extract_direction_mtvc(.$LFC_file, .$Assay_Type, .$Group, datatype, .$P_file, p_thr = p_thr))
+        }
       } else if (datatype == "tercen") {
         if (length(assay_types) == 2){
           mtvc_ptk <- group_rows %>%
             filter(Assay_Type == "PTK") %>%
-            do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
+            do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype, p_thr = p_thr))
           mtvc_stk <- group_rows %>%
             filter(Assay_Type == "STK") %>%
-            do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
+            do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype, p_thr = p_thr))
           df <- left_join(mtvc_ptk, mtvc_stk, by = c("comparison", "stats"))
         } else if (length(assay_types) == 1){
-          df <- group_rows %>% do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype))
+          df <- group_rows %>% do(extract_direction_mtvc(.$File, .$Assay_Type, .$Group, datatype, p_thr = p_thr))
         }
       }
       dfs <- append(dfs, list(df))
@@ -257,7 +257,7 @@ parse_mtvc <- function(stats_files, datatype, assay_types){
 
 
 
-parse_tt <- function(stats_files, datatype, assay_types){
+parse_tt <- function(stats_files, datatype, assay_types, p_thr = 0.05){
   dfs <- list()
   ttest_rows <- stats_files %>% filter(Stats == "TT")
   comparisons <- stats_files %>%
@@ -270,25 +270,25 @@ parse_tt <- function(stats_files, datatype, assay_types){
       if (length(assay_types) == 2){
         c_ptk <- c_rows %>%
           filter(Assay_Type == "PTK") %>%
-          do(extract_direction_tt(.$LFC_file, .$Comparison, .$Assay_Type, datatype, .$P_file))
+          do(extract_direction_tt(.$LFC_file, .$Comparison, .$Assay_Type, datatype, .$P_file, p_thr = p_thr))
         c_stk <- c_rows %>%
           filter(Assay_Type == "STK") %>%
-          do(extract_direction_tt(.$LFC_file, .$Comparison, .$Assay_Type, datatype, .$P_file))
+          do(extract_direction_tt(.$LFC_file, .$Comparison, .$Assay_Type, datatype, .$P_file, p_thr = p_thr))
         df <- left_join(c_ptk, c_stk, by = c("comparison", "stats"))
       } else if (length(assay_types) == 1) {
-        df <- c_rows %>% do(extract_direction_tt(.$LFC_file, .$Comparison, .$Assay_Type, datatype, .$P_file))
+        df <- c_rows %>% do(extract_direction_tt(.$LFC_file, .$Comparison, .$Assay_Type, datatype, .$P_file, p_thr = p_thr))
       }
     } else if (datatype == "tercen") {
       if (length(assay_types) == 2){
         c_ptk <- c_rows %>%
           filter(Assay_Type == "PTK") %>%
-          do(extract_direction_tt(.$File, .$Comparison, .$Assay_Type, datatype))
+          do(extract_direction_tt(.$File, .$Comparison, .$Assay_Type, datatype, p_thr = p_thr))
         c_stk <- c_rows %>%
           filter(Assay_Type == "STK") %>%
-          do(extract_direction_tt(.$File, .$Comparison, .$Assay_Type, datatype))
+          do(extract_direction_tt(.$File, .$Comparison, .$Assay_Type, datatype, p_thr = p_thr))
         df <- left_join(c_ptk, c_stk, by = c("comparison", "stats"))
       } else if (length(assay_types) == 1){
-        df <- c_rows %>% do(extract_direction_tt(.$File, .$Comparison, .$Assay_Type, datatype))
+        df <- c_rows %>% do(extract_direction_tt(.$File, .$Comparison, .$Assay_Type, datatype, p_thr = p_thr))
       }
     }
     dfs <- append(dfs, list(df))
@@ -309,7 +309,7 @@ enrich_results <- function(stats_files){
       df_e <- left_join(df, e, by = "ID")
       first_cols <- colnames(df_e)[! colnames(df_e) %in% c("LogFC", "P", "Assay_type")]
       df_e <- df_e[c(first_cols, "LogFC", "P", "Assay_type")]
-      write_csv(df_e, paste0("02_DATA/TT_", assaytype, "_", ttest_rows[i,]$Order, "_", ttest_rows[i,]$Comparison, "_enriched.csv"))
+      write_csv(df_e, extended_data_path(paste0("TT_", assaytype, "_", ttest_rows[i,]$Order, "_", ttest_rows[i,]$Comparison, "_enriched.csv")))
     }
   }
   
@@ -322,20 +322,30 @@ enrich_results <- function(stats_files){
       df_e <- left_join(df, e, by = "ID")
       first_cols <- colnames(df_e)[! colnames(df_e) %in% c("LogFC", "P", "Assay_type")]
       df_e <- df_e[c(first_cols, "LogFC", "P", "Assay_type")]
-      write_csv(df_e, paste0("02_DATA/MTvC_", assaytype, "_", mtvc_rows[i,]$Order, "_", mtvc_rows[i,]$Group, "_enriched.csv"))
+      write_csv(df_e, extended_data_path(paste0("MTvC_", assaytype, "_", mtvc_rows[i,]$Order, "_", mtvc_rows[i,]$Group, "_enriched.csv")))
     }
   }
   if ("Limma" %in% stats_files$Stats){
     limma_rows <- stats_files %>% filter(Stats == "Limma")
     for (i in 1:nrow(limma_rows)){
       assaytype <- limma_rows[i,]$Assay_Type %>% as.character()
-      df <- limma_rows[i,] %>% 
+
+      # cleaned copy of the Limma input, same name as the upload, into 02_DATA/
+      # (mirrors the cleaned UKA key-column table). Drop rows with no contrast, as
+      # extract_phosphosite_data_limma_tercen() does. enriched table below goes to
+      # the Extended data subfolder.
+      raw_clean <- read_delim(limma_rows[i,]$File, show_col_types = FALSE) %>%
+        clean_tercen_columns() %>%
+        drop_na(contrast)
+      write_csv(raw_clean, paste0("02_DATA/", basename(limma_rows[i,]$File)))
+
+      df <- limma_rows[i,] %>%
         do(extract_phosphosite_data_limma_tercen(filepath = .$File, assay_type = .$Assay_Type))
       df_e <- left_join(df, e, by = "ID")
       last_cols <- c("LogFC", "P", "FDR", "Assay_type")
       first_cols <- setdiff(colnames(df_e), last_cols)
       df_e <- df_e[,c(first_cols, last_cols)]
-      write_csv(df_e, paste0("02_DATA/Limma_", assaytype, "_", limma_rows[i,]$Order, "_", limma_rows[i,]$Group, "_enriched.csv"))
+      write_csv(df_e, extended_data_path(paste0("Limma_", assaytype, "_", limma_rows[i,]$Order, "_", limma_rows[i,]$Group, "_enriched.csv")))
     }
     
     
@@ -343,28 +353,28 @@ enrich_results <- function(stats_files){
 }
 
 
-parse_stats_files <- function(stats_files, datatype = "bionav") {
+parse_stats_files <- function(stats_files, datatype = "bionav", p_thr = 0.05) {
   if (datatype == "tercen"){
     enrich_results(stats_files)
   }
-  
+
   # determine whether study has both PTK and STK
   assay_types <- stats_files %>%
     select(Assay_Type) %>%
     unique() %>%
     pull()
-  
+
   all_dfs <- list()
   if ("MTvC" %in% stats_files$Stats) {
-    dfs_m <- parse_mtvc(stats_files, datatype, assay_types)
+    dfs_m <- parse_mtvc(stats_files, datatype, assay_types, p_thr = p_thr)
     all_dfs <- append(all_dfs, dfs_m)
   }
   if ("TT" %in% stats_files$Stats) {
-    dfs_t <- parse_tt(stats_files, datatype, assay_types)
+    dfs_t <- parse_tt(stats_files, datatype, assay_types, p_thr = p_thr)
     all_dfs <- append(all_dfs, dfs_t)
   }
   if ("Limma" %in% stats_files$Stats){
-    dfs_l <- parse_limma(stats_files, assay_types)
+    dfs_l <- parse_limma(stats_files, assay_types, p_thr = p_thr)
     all_dfs <- append(all_dfs, dfs_l)
   }
   
@@ -399,28 +409,28 @@ parse_stats_files <- function(stats_files, datatype = "bionav") {
 #   return(ft)
 # }
 
-stats_footnotes <- function(ft, res_table) {
+stats_footnotes <- function(ft, res_table, p_thr = 0.05) {
   # Extract unique stats types
   stats_types <- res_table %>%
     ungroup() %>%
     distinct(stats) %>%
     pull()
-  
+
   # Define footnotes for each stats type
   footnotes <- list(
     limma = list(
       condition = ~stats == "limma",
-      value = as_paragraph("Significance was obtained using Limma, p<0.05."),
+      value = as_paragraph(paste0("Significance was obtained using Limma, p<", p_thr, ".")),
       ref_symbols = c("a")
     ),
     mtvc = list(
       condition = ~stats == "mtvc",
-      value = as_paragraph("Significance was obtained using a one-way ANOVA followed by a post-hoc Dunnett's test, p<0.05"),
+      value = as_paragraph(paste0("Significance was obtained using a one-way ANOVA followed by a post-hoc Dunnett's test, p<", p_thr)),
       ref_symbols = c("b")
     ),
     tt = list(
       condition = ~stats == "tt",
-      value = as_paragraph("Significance was obtained using a two-sided unpaired Student's T-test, p<0.05."),
+      value = as_paragraph(paste0("Significance was obtained using a two-sided unpaired Student's T-test, p<", p_thr, ".")),
       ref_symbols = c("c")
     )
   )
@@ -444,7 +454,7 @@ stats_footnotes <- function(ft, res_table) {
 
 
 
-make_report_table_stats <- function(res_table, caption) {
+make_report_table_stats <- function(res_table, caption, p_thr = 0.05) {
   # identify first which assay types are included
   assay_types <- str_extract(colnames(res_table), ".TK") %>%
     na.omit() %>%
@@ -475,7 +485,7 @@ make_report_table_stats <- function(res_table, caption) {
     }
   }
   ft %>%
-    stats_footnotes(., res_table = res_table) %>%
+    stats_footnotes(., res_table = res_table, p_thr = p_thr) %>%
     theme_box() %>%
     fontsize(size = 9, part = "footer") %>%
     font(part = "all", fontname = "Arial") %>%
@@ -544,18 +554,18 @@ get_stats_data_range <- function(stats_files, datatype = "bionav") {
 
 
 
-render_volcano_plot <- function(df, lfc_range, p_range) {
-  
+render_volcano_plot <- function(df, lfc_range, p_range, p_thr = 0.05) {
+
   if (!"Comparison" %in% colnames(df)) {
     df <- df %>%
       mutate(Comparison = "Comparison")
   }
-  
+
   p <- ggplot(df, aes(x = LogFC, y = -log10(P))) +
-    geom_point(aes(color = ifelse(P < 0.05 & abs(LogFC) > 0, "Significant", "Not Significant")), 
+    geom_point(aes(color = ifelse(P < p_thr & abs(LogFC) > 0, "Significant", "Not Significant")),
                size = 1.5) +
     scale_color_manual(values = c("black", "red3")) +
-    geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") +
+    geom_hline(yintercept = -log10(p_thr), linetype = "dashed", color = "black") +
     facet_wrap(~Comparison, ncol = 3, nrow = ceiling(nlevels(as.factor(df$Comparison)) / 3), scales = "free") +
     theme_minimal() +
     theme(
@@ -571,7 +581,7 @@ render_volcano_plot <- function(df, lfc_range, p_range) {
   return(p)
 }
 
-make_volcano_plots <- function(stats_files, stats_type = "MTvC", datatype = "bionav") {
+make_volcano_plots <- function(stats_files, stats_type = "MTvC", datatype = "bionav", p_thr = 0.05) {
   # Determine range of data
   stats_range <- get_stats_data_range(stats_files, datatype = datatype)
   
@@ -623,14 +633,14 @@ make_volcano_plots <- function(stats_files, stats_type = "MTvC", datatype = "bio
         idx_end <- min(i * max_per_plot, num_levels)
         these_levels <- all_levels[idx_start:idx_end]
         df_sub <- df %>% filter(Comparison %in% these_levels)
-        p <- render_volcano_plot(df_sub, stats_range$lfc, stats_range$p)
+        p <- render_volcano_plot(df_sub, stats_range$lfc, stats_range$p, p_thr = p_thr)
         filename <- paste0("03_FIGURES/", stats_type, "_", group, if (!is.null(assay_type)) paste0("_", assay_type), "_Volcano_batch_", i, ".png")
         ggsave(filename, p, width = 8.27, height = 11.69, units = "in", dpi = 300)
         plot_list[[i]] <- p
       }
       return(plot_list)
     } else {
-      p <- render_volcano_plot(df, stats_range$lfc, stats_range$p)
+      p <- render_volcano_plot(df, stats_range$lfc, stats_range$p, p_thr = p_thr)
       filename <- paste0("03_FIGURES/", stats_type, "_", group, if (!is.null(assay_type)) paste0("_", assay_type), "_Volcano.png")
       ggsave(filename, p, width = 8.27, height = 11.69, units = "in", dpi = 300)
       return(p)
@@ -645,8 +655,8 @@ make_volcano_plots <- function(stats_files, stats_type = "MTvC", datatype = "bio
       c_stk <- process_data(c_rows %>% filter(Assay_Type == "STK"), "STK")
       df <- bind_rows(c_ptk, c_stk)
       
-      p_ptk <- render_volcano_plot(c_ptk, stats_range$lfc, stats_range$p)
-      p_stk <- render_volcano_plot(c_stk, stats_range$lfc, stats_range$p)
+      p_ptk <- render_volcano_plot(c_ptk, stats_range$lfc, stats_range$p, p_thr = p_thr)
+      p_stk <- render_volcano_plot(c_stk, stats_range$lfc, stats_range$p, p_thr = p_thr)
       
       pg <- plot_grid(p_ptk, p_stk, ncol = 1, labels = c("PTK", "STK"))
       ggsave(paste0("03_FIGURES/", stats_type, "_", group, "_Volcano.pdf"), pg, 
@@ -672,16 +682,16 @@ make_volcano_plots <- function(stats_files, stats_type = "MTvC", datatype = "bio
 ####################### HEATMAPS ########################
 #########################################################
 
-get_plotparams <- function(dflist, comparison = NULL){
+get_plotparams <- function(dflist, comparison = NULL, p_thr = 0.05){
   myvect <- c()
-  
+
   for (i in seq_along(dflist)){
-    df <- dflist[[i]] 
+    df <- dflist[[i]]
     if (!"Comparison" %in% colnames(df)) {
       df <- df %>% mutate(Comparison = comparison)
     }
     df <- df %>%
-      filter(P < 0.05) %>%
+      filter(P < p_thr) %>%
       select(ID, LogFC, Comparison) %>%
       pivot_wider(names_from = Comparison, values_from = LogFC, values_fill = 0)
     
@@ -727,13 +737,13 @@ get_plotparams <- function(dflist, comparison = NULL){
 
 
 
-render_heatmap <- function(df, lfc_range, comparison = NULL, assay_type) {
+render_heatmap <- function(df, lfc_range, comparison = NULL, assay_type, p_thr = 0.05) {
   if (!"Comparison" %in% colnames(df)) {
     df$Comparison <- "Comparison"
   }
-  
+
   df <- df %>%
-    filter(P < 0.05) %>%
+    filter(P < p_thr) %>%
     select(ID, LogFC, Comparison)
   clust_mat <- df %>%
     pivot_wider(names_from = Comparison, values_from = LogFC, values_fill = 0) %>%
@@ -774,7 +784,7 @@ render_heatmap <- function(df, lfc_range, comparison = NULL, assay_type) {
 
 
 
-make_heatmaps <- function(stats_files, stats_type = "MTvC", datatype = "bionav") {
+make_heatmaps <- function(stats_files, stats_type = "MTvC", datatype = "bionav", p_thr = 0.05) {
   # Determine range of data
   stats_range <- get_stats_data_range(stats_files, datatype = datatype)
   
@@ -814,9 +824,9 @@ make_heatmaps <- function(stats_files, stats_type = "MTvC", datatype = "bionav")
   
   # Function to generate and save heatmaps
   generate_heatmap <- function(df, group, assay_type = NULL, comparison = NULL) {
-    heatmap <- render_heatmap(df, stats_range$lfc, comparison = comparison, assay_type = assay_type)
+    heatmap <- render_heatmap(df, stats_range$lfc, comparison = comparison, assay_type = assay_type, p_thr = p_thr)
     filename <- paste0("03_FIGURES/", stats_type, "_", group, if (!is.null(assay_type)) paste0("_", assay_type), "_Heatmap.pdf")
-    ppars <- get_plotparams(list(df))
+    ppars <- get_plotparams(list(df), p_thr = p_thr)
     ggsave(filename, heatmap, width = 10, height = ppars$h)
     heatmap
   }

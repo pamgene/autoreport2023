@@ -3,7 +3,6 @@ title: "PamDx Data Analysis Report"
 params:
   author: "me"
   date: "January 1st, 1970"
-  qc_cv_factor: NULL
   stk_qc_method: NULL
   signal_heatmap: NULL
   normalizations: NULL
@@ -12,6 +11,7 @@ params:
   score_plot_color: NULL
   fscore_thr: NULL
   spec_thr: NULL
+  psite_p_thr: NULL
   csUKA: NULL
   coral_ks_thrs: NULL
   coral_min: NULL
@@ -26,7 +26,7 @@ date: "`r params$date`"
 always_allow_html: true
 output:
   word_document:
-    reference_docx: "ref/report_ref.docx"
+    reference_docx: "ref/report_ref_pamdx.docx"
     toc: yes
     fig_caption: true
     number_sections: false
@@ -45,7 +45,7 @@ source("R/03_KinaseAnalysis.R")
 
 # Introduction
 
-The PamDx assays measure kinase activity in cell and tissue lysates by measuring the phosphorylation of peptide representations of kinase targets/ substrates (referred hereafter as phosphosites) that are immobilized on the PamChip® microarrays. The active kinases in the sample lysates will phosphorylate their target on the array. Generic fluorescent labeled antibodies that recognize phosphorylated residues are used to visualize the phosphorylation. There are two types of PamChip® microarrays; one has 196 protein tyrosine kinase (PTK) and the other 144 serine/threonine kinase (STK) phosphosites. The supplement to this report can be found as `02_ReportSupplement_PamDx.docx`, hereafter referred to as Supplement.
+The PamDx assays measure kinase activity in cell and tissue lysates, by measuring the phosphorylation of peptide representations of kinase targets/ substrates (referred hereafter as phosphosites) that are immobilized on the PamChip® microarrays. The active kinases in the sample lysates will phosphorylate their target on the array. Generic fluorescent labeled antibodies that recognize phosphorylated residues are used to visualize the phosphorylation. There are two types of PamChip® microarrays; one has 196 protein tyrosine kinase (PTK) and the other 144 serine/threonine kinase (STK) phosphosites. The supplement to this report can be found as `02_ReportSupplement_PamDx.docx`, hereafter referred to as Supplement.
 
 ## Study Information
 
@@ -65,47 +65,73 @@ We recommend replicates of n=3+ per test condition for cell line experiments and
 qc_files <- read_qc_dir()
 
 if (nrow(qc_files) > 0) {
-  qc_table <- parse_qc(qc_files, params$qc_cv_factor, params$datatype)
-
-  qc_table <- qc_table %>% mutate(flag_string = case_when(
-                      Overall_Flag == 1 ~ paste0("\"poor\", ![](img/red_10.png)"),
-                      Overall_Flag == 2 ~ paste0("\"fair\", ![](img/orange_10.png)"),
-                      Overall_Flag == 3 ~ paste0("\"good\", ![](img/green_10.png)")
-  ))
-  
-  if (length(levels(qc_table$Assay_Type)) == 2) {
-    ptk_qc_result <- qc_table %>% filter(Assay_Type == "PTK") %>% pull(flag_string)
-    stk_qc_result <- qc_table %>% filter(Assay_Type == "STK") %>% pull(flag_string)
-    qc_result <- paste0("In this study, the PTK QC flag was ", ptk_qc_result, " and the STK QC flag was ", stk_qc_result, ".")
-  } else if (length(levels(qc_table$Assay_Type)) == 1) {
-    assay_type <- qc_table %>% pull(Assay_Type)
-    qc_res <- qc_table %>% pull(flag_string)
-    qc_result <- paste0("In this study, the ", assay_type, " QC flag was ", qc_res, ".")
-  }
-
+  qc_parsed <- parse_qc(qc_files, params$datatype)
+  qc_result <- build_qc_result_text(qc_parsed$qc_table, qc_parsed$variability_table, qc_files)
 }
 
-
+# Auto-detected from the QC files for tercen data; falls back to the manual
+# "Normalizations" UI param otherwise (bionav, or no QC files uploaded yet).
+effective_normalizations <- get_effective_normalizations(qc_files, params$datatype, params$normalizations)
 ```
 
-As a first data analysis step, the quality of the dataset is assessed based on PamDx’s QC criteria for signal strength, number of peptides and the replicate variation. The data quality can either be “good” (i.e., green flag ![](img/green_10.png),  “fair” (i.e., orange flag,  ![](img/orange_10.png)) or “poor” (i.e., red flag, ![](img/red_10.png)). The quality scores serve to assess the reliability of the data. Further details about the definition of QC flags and how they are applied to the data are provided in Supplement section 2.2.2.
-
 `r if(nrow(qc_files) > 0) qc_result`
+
+```{r, echo=FALSE, results='asis'}
+if (nrow(qc_files) > 0 && any(qc_files$Replicate_Type == "BR")) {
+  cat("Details about QC flags and the Data Variability Indicator are provided in Supplement section 2.2.2.")
+}
+```
+
+```{r, echo=FALSE, results='asis'}
+norm_list <- c()
+if ("vsn" %in% effective_normalizations) {
+  norm_list <- c(norm_list, "VSN normalization")
+} else {
+  norm_list <- c(norm_list, "Log2 transformation")
+}
+if ("combat" %in% effective_normalizations) {
+  norm_list <- c(norm_list, "ComBat correction")
+}
+norm_verb <- if (length(norm_list) == 1) "was" else "were"
+cat(paste0("**Normalization**: ", paste(norm_list, collapse = " and "), " ", norm_verb, " applied."))
+
+if ("vsn" %in% effective_normalizations) {
+  cat("\n\nFollowing VSN normalization, observed effects are expressed relative to the overall data average.")
+}
+```
 
 \newpage
 
 ## Phosphosite Analysis
 
-Next, differentially phosphorylated phosphosites between conditions are identified with statistical tests. 
-The signal per phosphosite is the result of the phosphorylation by one or more kinases. Phosphosite-level data shows the overall trend and direction of the test effect, as well as the effect size. This is useful to place the Upstream Kinase Analysis (UKA) in context. Importantly, when the phosphosite data is not significant (we consider >8 significant phosphosites per assay type, per comparison as significant), we consider UKA to be a preliminary or trend analysis that needs further exploration, potentially with increased number of replicates. 
+```{r phosphosite analysis setup, echo=FALSE}
+psite_p_thr <- if (is.null(params$psite_p_thr)) 0.05 else params$psite_p_thr
+stats_files <- read_phosphosite_dir(datatype = params$datatype)
+
+# Full names for the statistical tests, keyed by the codes in stats_files$Stats.
+stats_test_labels <- c(
+  Limma = "LIMMA (Linear Models for Micro Arrays)",
+  MTvC  = "Multiple Test conditions versus Control (MTvC)",
+  TT    = "T-test (TT)"
+)
+applied_tests <- unique(stats_files$Stats)
+applied_tests <- applied_tests[applied_tests %in% names(stats_test_labels)]
+applied_test_text <- if (length(applied_tests) == 0) {
+  "statistical tests"
+} else {
+  paste(stats_test_labels[applied_tests], collapse = " and ")
+}
+```
+
+Next, differentially phosphorylated phosphosites between conditions are identified with `r applied_test_text`.
+The signal per phosphosite is the result of the phosphorylation by one or more kinases. Phosphosite-level data shows the overall trend and direction of the test effect, as well as the effect size. This is useful to place the Upstream Kinase Analysis (UKA) in context. Importantly, when the significance level in phosphosite data is low (we consider >8 significant phosphosites per assay type, per comparison as desired significance level), we consider UKA to be a preliminary or trend analysis that needs further exploration, potentially with increased number of replicates.
 See also Supplement section 2.3. The table below shows the statistical analysis for each comparison.
 
 ```{r phosphosite analysis}
 
-stats_files <- read_phosphosite_dir(datatype = params$datatype)
 if (nrow(stats_files) > 0){
-  stats <- parse_stats_files(stats_files, params$datatype)
-  make_report_table_stats(stats, "Phosphosite Analysis")
+  stats <- parse_stats_files(stats_files, params$datatype, p_thr = psite_p_thr)
+  make_report_table_stats(stats, "Phosphosite Analysis", p_thr = psite_p_thr)
 }
 
 ```
@@ -146,7 +172,7 @@ The Kinase dotplots below show the specificity (`r if(params$csUKA) "Specificity
 \newpage
 # Conclusions
 
-`r if ("vsn" %in% params$normalizations) paste0("VSN normalization was applied therefore results reveal differences relative to the data average.")`
+`r if ("vsn" %in% effective_normalizations) paste0("VSN normalization was applied therefore results reveal differences relative to the data average.")`
 
 Explore pathways and networks with online tools. Tutorials are available [here](https://pamgene.github.io/PamGene_data_analysis_guide/PamDx%20methods/4.%20Further%20insights%20to%20PamDx%20data/). 
 

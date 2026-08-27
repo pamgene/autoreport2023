@@ -1,0 +1,7 @@
+.git
+.github
+.claude
+tests
+R/renv
+R/renv.lock
+R/.Rprofile

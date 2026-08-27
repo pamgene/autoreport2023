@@ -14,6 +14,25 @@ docker build -t autoreport .
 docker run -dp 5050:5050 autoreport
 
 
+## Tests
+
+Automated tests live in `tests/testthat/` and run against the real files in
+`data/test inputs/`:
+- QC basic-processing (`R/01_BasicProcessing.R`, `R/00_GeneralFunctions.R`): column/
+  filename parsing, the flag rules, the SD-based variability calculation, and full
+  read-parse-render integration tests for BR/TR/mixed studies.
+- Limma phosphosite-analysis input parsing (`read_phosphosite_dir()`).
+- UKA (all-vs-all) kinase-analysis input parsing and comparison-splitting
+  (`read_kinase_dir()`). The older UKA_MTvC/UKA_TGC formats aren't covered - they're no
+  longer used.
+
+Run them from the repo root:
+```
+Rscript tests/testthat.R
+```
+Requires `testthat`, `dplyr`, `tidyr`, `readr`, `tibble`, `stringr`, `purrr`, and
+`flextable` (`install.packages(...)` if any are missing from your local R library).
+
 Logs of issues and feature requests found [here](https://pamgenecom.sharepoint.com/sites/Tercendev/SitePages/ProjectHome.aspx).
 
 
