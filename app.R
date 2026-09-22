@@ -205,12 +205,19 @@ server <- function(input, output, session) {
 
     filetypes <- input$reportFiles %>% distinct(type) %>% pull()
 
+    # updateRadioButtons() only queues a client message - input$datatype won't reflect
+    # it until a round-trip with the browser completes, so code later in this same
+    # observer tick must use current_datatype, not input$datatype, to see the corrected
+    # value immediately.
+    current_datatype <- input$datatype
     if (filetypes == "text/csv") {
       showNotification("Tercen output detected!", type = "message")
       updateRadioButtons(session, "datatype", selected = "tercen")
+      current_datatype <- "tercen"
     } else if (filetypes == "text/plain") {
       showNotification("BioNavigator output detected!", type = "message")
       updateRadioButtons(session, "datatype", selected = "bionav")
+      current_datatype <- "bionav"
     }
 
     if (length(input$reportFiles$name) == 1 && grepl(".zip$", input$reportFiles$name)) {
@@ -226,7 +233,7 @@ server <- function(input, output, session) {
     qc_table <- read_qc_dir()
     has_qc_files(nrow(qc_table) > 0)
     output$`qc_table` <- renderTable(qc_table)
-    phosphosite_table <- read_phosphosite_dir(datatype = input$datatype)
+    phosphosite_table <- read_phosphosite_dir(datatype = current_datatype)
     has_phosphosite_files(nrow(phosphosite_table) > 0)
     output$`phosphosite_table` <- renderTable(phosphosite_table)
 
