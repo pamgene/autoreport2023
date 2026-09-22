@@ -76,7 +76,11 @@ test_that("end-to-end: a synthetic BR 'value' file, correctly tagged, parses and
 
   parsed <- parse_qc(qc_files, "tercen")
 
-  expect_equal(nrow(parsed$qc_table), 1) # BR -> single row
+  # BR-only (no TR file) -> still gets a QC-results row, from the BR-fallback flag (2
+  # criteria only: signal, peptides - only 2 peptides here, well under STK's threshold).
+  expect_equal(nrow(parsed$qc_table), 1)
+  expect_equal(parsed$qc_table$num_peptides, 2)
+  expect_true(is.na(parsed$qc_table$Variability_Flag))
   expect_equal(nrow(parsed$variability_table), 1)
   expect_equal(parsed$variability_table$Normalization, "VSN + ComBat")
 
@@ -133,8 +137,9 @@ test_that("a simple TR-only project needs no tag - real files, untagged, still f
   expect_equal(nrow(parsed$qc_table), 1)
   expect_equal(parsed$qc_table$Normalization, "VSN + ComBat")
   expect_true(!is.na(parsed$qc_table$Variability_Flag))
-  # But all 4 normalizations still show up in the full detail table (Table 4).
-  expect_setequal(parsed$variability_table$Normalization, c("Log", "Log + ComBat", "VSN", "VSN + ComBat"))
+  # No BR file anywhere -> the Data Variability Indicator (BR-only) gets nothing here,
+  # regardless of how many normalizations Table 2's TR data has.
+  expect_equal(nrow(parsed$variability_table), 0)
 })
 
 test_that("a simple BR-only project needs no tag - real files, untagged, still fully parse", {
@@ -149,7 +154,9 @@ test_that("a simple BR-only project needs no tag - real files, untagged, still f
   expect_true(all(qc_files$Replicate_Type == "BR"))
 
   parsed <- parse_qc(qc_files, "tercen")
-  expect_equal(nrow(parsed$qc_table), 1) # BR -> single collapsed row
+  # BR-only (no TR file) -> still gets a QC-results row, from the BR-fallback flag.
+  expect_equal(nrow(parsed$qc_table), 1)
+  expect_equal(parsed$qc_table$Normalization, "VSN + ComBat")
   expect_equal(nrow(parsed$variability_table), 4) # all 4 normalizations still detailed here
   expect_setequal(parsed$variability_table$Normalization, c("Log", "Log + ComBat", "VSN", "VSN + ComBat"))
 })

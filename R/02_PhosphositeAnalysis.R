@@ -298,7 +298,9 @@ parse_tt <- function(stats_files, datatype, assay_types, p_thr = 0.05){
 
 
 enrich_results <- function(stats_files){
-  e <- read_csv("data/enrichment_86312_86402_86412_87102_87202_arrays.csv") %>% select(-family, -SeqMatch)
+  e <- read_csv("data/enrichment_86312_86402_86412_87102_87202.csv") %>% select(-family, -PepProtein_SeqMatch, -array_layouts, -chip_num)
+  dup_ids <- e %>% count(ID) %>% filter(n > 1) %>% pull(ID)
+  e <- e %>% filter(!(ID %in% dup_ids & is.na(PepProtein_UniprotName)))
   
   if ("TT" %in% stats_files$Stats){
     ttest_rows <- stats_files %>% filter(Stats == "TT")
@@ -416,6 +418,12 @@ stats_footnotes <- function(ft, res_table, p_thr = 0.05) {
     distinct(stats) %>%
     pull()
 
+  # When Limma is the only analysis used (the common case, one test per project),
+  # the method is stated as plain text above the table instead of a footnote
+  # superscript. Keep the footnote when Limma is mixed with other tests so the
+  # per-comparison symbols still disambiguate.
+  limma_only <- length(stats_types) == 1 && stats_types == "limma"
+
   # Define footnotes for each stats type
   footnotes <- list(
     limma = list(
@@ -437,6 +445,7 @@ stats_footnotes <- function(ft, res_table, p_thr = 0.05) {
   
   # Add footnotes based on the stats types present in the data
   for (type in stats_types) {
+    if (type == "limma" && limma_only) next
     if (type %in% names(footnotes)) {
       ft <- ft %>%
         footnote(

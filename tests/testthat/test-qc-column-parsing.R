@@ -48,6 +48,20 @@ test_that("classify_qc_columns recognizes case-insensitive 'sample' variants", {
   }
 })
 
+test_that("classify_qc_columns recognizes an exact 'Biol_Rep' column", {
+  df <- tibble(ID = "p1", Biol_Rep = "b1", `Test Condition` = "Test", logTransformed = 1)
+  cls <- classify_qc_columns(df, "logTransformed")
+  expect_equal(cls$sample_cols, "Biol_Rep")
+  expect_equal(cls$condition_cols, "Test Condition")
+})
+
+test_that("classify_qc_columns does not treat 'Biol_Rep' as a match unless it's exact", {
+  # unlike the "sample" rule, Biol_Rep is not a substring/case-insensitive match - a
+  # similarly-named column should fall through to the ambiguity error instead.
+  df <- tibble(ID = "p1", biol_rep_id = "b1", `Test Condition` = "Test", logTransformed = 1)
+  expect_error(classify_qc_columns(df, "logTransformed"), "could not identify sample column")
+})
+
 test_that("classify_qc_columns errors when sample columns can't be identified", {
   df <- tibble(ID = "p1", Foo = "x", Bar = "y", logTransformed = 1)
   expect_error(classify_qc_columns(df, "logTransformed"), "could not identify sample column")

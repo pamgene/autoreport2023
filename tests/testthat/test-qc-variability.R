@@ -67,6 +67,11 @@ test_that("stringify_sd formats a min-max range rounded to 2 decimals", {
   expect_equal(stringify_sd(c(0.5, 0.5)), "0.5 - 0.5")
 })
 
+test_that("stringify_median_sd formats a single median value rounded to 2 decimals", {
+  expect_equal(stringify_median_sd(c(0.1234, 0.5678, 0.3)), "0.3")
+  expect_equal(stringify_median_sd(c(0.5, 0.5)), "0.5")
+})
+
 test_that("compute_condition_sd on the real QC_STK_01_BR.csv fixture (Log) matches a captured baseline", {
   raw <- read_delim(qc_input_path("QC_STK_01_BR.csv"), show_col_types = FALSE)
   raw <- clean_tercen_columns(raw)

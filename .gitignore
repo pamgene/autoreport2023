@@ -12,3 +12,4 @@ renv/~BROMIUM
 ~BROMIUM
 .github/workflows/docker-publish_backup.yml
 renv_new.lock
+data/QC_for_SD_distribution

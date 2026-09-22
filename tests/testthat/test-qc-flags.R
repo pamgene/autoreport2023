@@ -17,6 +17,18 @@ test_that("combine_flags 2-criteria rule: good iff both good, poor iff both poor
   expect_equal(combine_flags(c(2, 2)), 2)
 })
 
+test_that("combine_flags_br: good iff both good, poor iff NEITHER is good, else fair", {
+  # Distinct from combine_flags()'s 2-criteria rule: (poor, fair) is "fair" there, but
+  # "poor" here, since neither criterion reached good and there's no 3rd criterion to
+  # soften it.
+  expect_equal(combine_flags_br(c(3, 3)), 3)
+  expect_equal(combine_flags_br(c(1, 1)), 1)
+  expect_equal(combine_flags_br(c(2, 2)), 1) # both fair -> poor here (fair under combine_flags)
+  expect_equal(combine_flags_br(c(1, 2)), 1) # poor+fair -> poor here (fair under combine_flags)
+  expect_equal(combine_flags_br(c(3, 1)), 2)
+  expect_equal(combine_flags_br(c(3, 2)), 2)
+})
+
 test_that("combine_flags errors on an unsupported number of criteria", {
   expect_error(combine_flags(c(1)), "expected 2 or 3")
   expect_error(combine_flags(c(1, 1, 1, 1)), "expected 2 or 3")

@@ -66,7 +66,7 @@ qc_files <- read_qc_dir()
 
 if (nrow(qc_files) > 0) {
   qc_parsed <- parse_qc(qc_files, params$datatype)
-  qc_result <- build_qc_result_text(qc_parsed$qc_table, qc_parsed$variability_table, qc_files)
+  qc_result <- build_qc_result_text(qc_parsed$qc_table)
 }
 
 # Auto-detected from the QC files for tercen data; falls back to the manual
@@ -77,8 +77,15 @@ effective_normalizations <- get_effective_normalizations(qc_files, params$dataty
 `r if(nrow(qc_files) > 0) qc_result`
 
 ```{r, echo=FALSE, results='asis'}
-if (nrow(qc_files) > 0 && any(qc_files$Replicate_Type == "BR")) {
-  cat("Details about QC flags and the Data Variability Indicator are provided in Supplement section 2.2.2.")
+if (nrow(qc_files) > 0) {
+  # Quality Control (2.2.2) and Data Variability Indicator (2.2.3, when shown) are two
+  # separate sibling subsections in the Supplement now, so each gets its own number.
+  variability_clause <- if (any(qc_files$Replicate_Type == "BR")) {
+    ", and an indication of the biological replicate variability in Supplement section 2.2.3"
+  } else {
+    ""
+  }
+  cat(paste0("Details about QC flags are provided in Supplement section 2.2.2", variability_clause, "."))
 }
 ```
 
@@ -126,6 +133,14 @@ applied_test_text <- if (length(applied_tests) == 0) {
 Next, differentially phosphorylated phosphosites between conditions are identified with `r applied_test_text`.
 The signal per phosphosite is the result of the phosphorylation by one or more kinases. Phosphosite-level data shows the overall trend and direction of the test effect, as well as the effect size. This is useful to place the Upstream Kinase Analysis (UKA) in context. Importantly, when the significance level in phosphosite data is low (we consider >8 significant phosphosites per assay type, per comparison as desired significance level), we consider UKA to be a preliminary or trend analysis that needs further exploration, potentially with increased number of replicates.
 See also Supplement section 2.3. The table below shows the statistical analysis for each comparison.
+
+```{r phosphosite analysis stats note, echo=FALSE, results='asis'}
+# When Limma is the only test used, state the method as plain text here instead
+# of a per-row footnote superscript in the table (see stats_footnotes()).
+if (nrow(stats_files) > 0 && identical(applied_tests, "Limma")) {
+  cat(paste0("Significance was obtained using Limma, p<", psite_p_thr, "."))
+}
+```
 
 ```{r phosphosite analysis}
 

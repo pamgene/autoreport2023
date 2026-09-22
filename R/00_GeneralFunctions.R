@@ -45,8 +45,11 @@ get_column_names <- function(csUKA = FALSE) {
 
 
 read_qc_dir <- function(folder = "01_Basic Processing/") {
-  # will return df with files for easy processing
-  files <- list.files(folder, pattern = ".txt$|.csv$", full.names = TRUE, include.dirs = FALSE)
+  # will return df with files for easy processing. Requires the "QC_" filename prefix so
+  # an unrelated .txt/.csv dropped into the same folder (e.g. a readme) isn't picked up as
+  # a bogus QC file (it would otherwise parse to Assay_Type = NA and just get silently
+  # skipped downstream - safer to not list it at all).
+  files <- list.files(folder, pattern = "^QC_.*\\.(txt|csv)$", full.names = TRUE, include.dirs = FALSE)
 
   if (length(files) == 0) {
     warning("No QC files")

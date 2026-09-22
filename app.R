@@ -31,17 +31,15 @@ ui <- fluidPage(
                 numericInput("fscore_thr", "Final Score threshold", 1.3, 0, 10, step = 0.1),
                 numericInput("spec_thr", "Specificity Score threshold", 0.7, 0, 10, step = 0.1),
                 helpText("Score thresholds affect: main report top kinase table, coral tree dotsize, text."),
-                radioButtons("signal_heatmap", "Include Overall Signal Heatmap Text", choices = c("Yes" = "yes", "No" = "no")),
-                checkboxGroupInput("heatmap", "Significant Peptide Heatmap", choices = c("Yes" = "heatmap")),
                 numericInput("psite_p_thr", "Phosphosite significance p-value threshold", 0.05, min = 0, max = 1, step = 0.001),
                 helpText("Affects: main report phosphosite analysis table, Supplement peptide volcano/heatmap."),
+                radioButtons("signal_heatmap", "Include Overall Signal Heatmap Text", choices = c("Yes" = "yes", "No" = "no")),
+                checkboxGroupInput("heatmap", "Significant Peptide Heatmap", choices = c("Yes" = "heatmap")),
                 checkboxGroupInput("kinase_analysis", "Kinase Analysis",
                                    choices = c("Coral Tree" = "tree")),
                 helpText("The below outputs are deprecated and should be only used when necessary - not as default!"),
-                checkboxGroupInput("kinase_analysis_old", "Deprecated Kinase outputs", 
+                checkboxGroupInput("kinase_analysis_old", "Deprecated Kinase outputs",
                                    choices = c("Score Table" = "table", "Score Plot - family" = "splotf", "Score Plot - specificity" = "splots")),
-                radioButtons(
-                  "stk_qc_method", "STK QC method", choices = c("LOD" = "LOD", "Nominal CV" = "nom_cv")),
                 helpText("Coral KS thresholds are derived from the 0.1 and 0.9 percentile of the data for each comparison."),
                 radioButtons(
                   "coral_ks_thrs", "Coral Kinase Statistics thresholds", choices = c("Automatic" = "coral_auto", "Manual" = "coral_man")),
@@ -52,6 +50,8 @@ ui <- fluidPage(
                 ),
                 radioButtons("xax_scale", "Same X axis for all score plots",
                              choices = c("No" = "no", "Yes" = "yes")),
+                radioButtons(
+                  "stk_qc_method", "STK QC method", choices = c("LOD" = "LOD", "Nominal CV" = "nom_cv")),
                 checkboxGroupInput("normalizations", "Normalizations-BioNav input", choices = c("VSN" = "vsn", "ComBat Correction" = "combat")),
                 helpText("Only used for BioNavigator QC files. For Tercen QC files, normalization is detected automatically from the uploaded files."),
                 fluidRow(

@@ -69,7 +69,7 @@ knitr::include_graphics("./img/AssayPrinciple.png")
 
 The general workflow for data analysis is shown below (Figure 2), which was used to derive the results described in the Report and this Supplement, with details following.
 
-```{r analysis-workflow, message=FALSE, fig.align='center', fig.cap='Data analysis workflow.', fig.width=6.3, fig.height=2.68}
+```{r analysis-workflow, message=FALSE, fig.align='center', fig.cap='Data analysis workflow.', fig.width=6.3, fig.height=2.84}
 knitr::include_graphics("./img/AnalysisWorkflow_2026.png")
 ```
 
@@ -94,7 +94,7 @@ qc_files <- read_qc_dir()
 if (nrow(qc_files) > 0) {
   qc_assay_types <- qc_files %>% pull(Assay_Type)
   qc_parsed <- parse_qc(qc_files, params$datatype)
-  show_variability_section <- should_show_variability_section(qc_files, qc_parsed$variability_table)
+  show_variability_section <- should_show_variability_section(qc_files)
 } else {
   qc_assay_types <- ""
   show_variability_section <- FALSE
@@ -105,22 +105,41 @@ if (nrow(qc_files) > 0) {
 effective_normalizations <- get_effective_normalizations(qc_files, params$datatype, params$normalizations)
 ```
 
-The quality of the data was assessed using criteria shown in Table 1. The QC results for the data in this study are shown in Table 2.
+```{r, echo=FALSE, results='asis'}
+cat("The quality of the data was assessed using criteria shown in Table 1. The QC results for the data in this study are shown in Table 2.")
+```
 
 ```{r, echo=FALSE, results='asis'}
-if (nrow(qc_files) > 0 && any(qc_files$Replicate_Type == "TR")) {
-  cat("Three criteria were checked using a flag system is used to indicate a quality level:\n\n")
-  cat("* Phosphosite signal strength (i.e., the 99th percentile of S100 AU (arbitrary units).\n\n")
-  cat("* Phosphosite number control (i.e., how many phosphosites passed quality control).\n\n")
-  cat("* Data variability (i.e., the median within-condition peptide signal standard deviation (SD), based on technical replicates).\n\n")
-  cat("Each criterion is individually rated good, fair, or poor (see Table 1).\n\n")
-  cat("The overall QC flag is: good if all three criteria are individually good; poor if no criterion is good and at least two criteria are poor; fair in every other case.")
-} else {
+if (params$datatype == "bionav") {
   cat("Two criteria were checked using a flag system is used to indicate a quality level:\n\n")
   cat("* Phosphosite signal strength (i.e., the 99th percentile of S100 AU (arbitrary units).\n\n")
   cat("* Phosphosite number control (i.e., how many phosphosites passed quality control).\n\n")
   cat("Each criterion is individually rated good, fair, or poor (see Table 1).\n\n")
   cat("The overall QC flag is: good only if both criteria are individually good; poor only if both criteria are individually poor; fair for any other combination.")
+} else if (nrow(qc_files) > 0 && any(qc_files$Replicate_Type == "TR")) {
+  # Any TR present anywhere in the study -> describe the 3-criteria system, full stop.
+  # An assay type with no TR file of its own still gets its own Table 2 row from its BR
+  # data (2 criteria only - see parse_qc()), but that's real per-row detail the table
+  # itself shows; the text stays a single, simple description rather than enumerating
+  # every per-assay case.
+  cat("Three criteria were checked using a flag system is used to indicate a quality level:\n\n")
+  cat("* Phosphosite signal strength (i.e., the 99th percentile of S100 AU (arbitrary units).\n\n")
+  cat("* Phosphosite number control (i.e., how many phosphosites passed quality control).\n\n")
+  cat("* Median variability of technical replicates (i.e., the median of the median within-condition peptide signal standard deviation (SD)).\n\n")
+  cat("Each criterion is individually rated good, fair, or poor (see Table 1).\n\n")
+  cat("The overall QC flag is: good if all three criteria are individually good; poor if no criterion is good and at least two criteria are poor; fair in every other case.")
+} else if (nrow(qc_files) > 0) {
+  # tercen, all-BR (no TR anywhere): Table 2 gets a row per assay from its BR data too -
+  # 2 criteria, no per-replicate noise to support a 3rd variability criterion. Biological
+  # replicate variability is reported separately, informationally, via the Data
+  # Variability Indicator instead of being folded into this flag.
+  cat("Two criteria were checked using a flag system is used to indicate a quality level:\n\n")
+  cat("* Phosphosite signal strength (i.e., the 99th percentile of S100 AU (arbitrary units).\n\n")
+  cat("* Phosphosite number control (i.e., how many phosphosites passed quality control).\n\n")
+  cat("Each criterion is individually rated good, fair, or poor (see Table 1).\n\n")
+  cat("The overall QC flag is: good if both criteria are individually good; poor if no criterion is good; fair in every other case.\n\n")
+  cat("Biological replicate variability is not part of this flag; see the Data Variability Indicator.\n\n")
+  cat("(For studies with technical replicates an additional QC criteria, the variability of replicates is included. For biological variance see: Data Variability Indicator).")
 }
 ```
 
@@ -148,27 +167,24 @@ if (params$stk_qc_method == "LOD") {
 
 
 ```{r qc table}
-if (nrow(qc_files) > 0) {
+# qc_parsed$qc_table is TR-only (see parse_qc()) - an all-BR study (no TR file anywhere)
+# has no rows here at all, so there's nothing to render.
+if (nrow(qc_files) > 0 && nrow(qc_parsed$qc_table) > 0) {
   render_qc_results_table(qc_parsed$qc_table)
 }
 ```
 
 ```{r, echo=FALSE, results='asis'}
 if (show_variability_section) {
-  cat('**Data Variability Indicator**\n\n')
-  cat("Alongside the QC flag, data variability is reported across three tiers (low/medium/high, Table 3). Lower variation enables detection of smaller effect sizes from the covariates of interest. With high variability a larger sample size may be required to detect differentially active phosphosites or kinases reliably. The Data Variability Indicator uses median peptide standard deviation (SD) per condition (e.g. test, control). Table 4 reports the range (minimum – maximum) of this median SD across all conditions and normalizations in the study.")
+  cat("### Data Variability Indicator\n\n")
+  cat("Figure 3 shows the median variability of biological replicates in the current experiment, compared to the distribution of variability across a large variety of PamDx experiments. The variability of an experiment is the median peptide signal standard deviation (SD) within a condition. Figure 3 shows the median of the variabilities across all conditions, for each normalization.\n\n")
+  cat("Lower variation enables detection of smaller effect sizes from the covariates of interest. With high variability, a larger sample size may be required to detect differentially active phosphosites or kinases reliably.")
 }
 ```
 
-```{r variability ref table}
+```{r variability-boxplot, fig.align='center', fig.cap='Data Variability Indicator.', fig.width=6.3, fig.height=4, dpi=200}
 if (show_variability_section) {
-  render_variability_ref_table(qc_parsed$variability_table)
-}
-```
-
-```{r variability table}
-if (show_variability_section) {
-  render_variability_table(qc_parsed$variability_table)
+  render_variability_boxplot(qc_parsed$variability_table)
 }
 ```
 
