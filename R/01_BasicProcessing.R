@@ -608,7 +608,7 @@ variability_line_colors <- c(
 # variability_table (i.e. present as BR in the current study - see parse_qc()), showing
 # the historical per-condition median-SD distribution for that assay type (from the
 # one-time precomputed data/qc_variability_distribution.rds - see
-# R/calculate_variability_distribution.R), with one vertical reference line per
+# scripts/calculate_variability_distribution.R), with one vertical reference line per
 # normalization the current experiment has, at its own median-across-conditions value.
 render_variability_boxplot <- function(variability_table) {
   reference_data <- readRDS("data/qc_variability_distribution.rds")

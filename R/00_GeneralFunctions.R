@@ -23,6 +23,19 @@ extended_data_path <- function(filename) {
   file.path(EXTENDED_DATA_DIR, filename)
 }
 
+# Detects whether an uploaded UKA file uses the csUKA (single-comparison) column
+# naming - "Final score", "Specificity Score", ... - or the legacy bootstrap-averaged
+# naming - "Median Final score", "Mean Specificity Score", .... The column names are
+# themselves the only signal for which UKA method produced the file, so this replaces
+# asking the user to pick via a UI toggle.
+detect_csUKA <- function(df) {
+  cols <- colnames(df)
+  if ("Final score" %in% cols) return(TRUE)
+  if ("Median Final score" %in% cols) return(FALSE)
+  warning("Could not detect csUKA from UKA file columns; defaulting to FALSE (legacy Median/Mean naming).")
+  FALSE
+}
+
 get_column_names <- function(csUKA = FALSE) {
   if (csUKA) {
     list(
@@ -258,31 +271,32 @@ process_uka_allvsall <- function(files, csUKA, folder, counter = 0) {
 
 
 
-read_kinase_dir <- function(folder = "03_Kinase Analysis/", csUKA) {
+read_kinase_dir <- function(folder = "03_Kinase Analysis/") {
   # will return df with files for easy processing
   files <- list.files(folder, pattern = ".txt$|.csv$", full.names = TRUE, include.dirs = FALSE)
   if (length(files) == 0) {
     warning("No kinase files")
     return(data.frame())
   }
-  
+
   # if it is UKA from the UKA_MTvC or TGC app, make the same dataformat as old uka, save and read the files again
   if (any(grepl("_ukam-|_ukat-", files))){
     files <- process_ukat_ukam(folder = folder)
   }
-  
+
   # if it is uka all vs all comparison, make the same dataformat as old uka, save and read the files again
   uka_example <- read_delim(files[1], show_col_types = FALSE) %>% clean_tercen_columns()
+  csUKA <- detect_csUKA(uka_example)
   if ("contrast" %in% colnames(uka_example)){
     files <- process_uka_allvsall(files = files, csUKA = csUKA, folder = folder)
   }
-  
-  
+
+
   dfs <- list()
   for (i in seq_along(files)) {
     file <- files[i]
-    
-    
+
+
     file_base <- basename(file)
     file_base <- tools::file_path_sans_ext(file_base)
     file_elements <- str_split(file_base, pattern = "_")
@@ -293,6 +307,7 @@ read_kinase_dir <- function(folder = "03_Kinase Analysis/", csUKA) {
     df <- tibble("Order" = order, "Comparison" = comparison, "Assay_Type" = assay_type, "UKA_file" = file)
     dfs[[i]] <- df
   }
-  output <- bind_rows(dfs)
-  return(output %>% arrange(Order))
+  output <- bind_rows(dfs) %>% arrange(Order)
+  attr(output, "csUKA") <- csUKA
+  return(output)
 }

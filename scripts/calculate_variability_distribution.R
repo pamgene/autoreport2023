@@ -1,6 +1,9 @@
-# Standalone script - NOT sourced by app.R or the Rmds. Run once (or whenever
-# data/QC_for_SD_distribution/ changes) from the repo root:
-#   Rscript R/calculate_variability_distribution.R
+# Standalone script - lives outside R/ on purpose: Shiny auto-sources every .R file
+# under an app's R/ directory at startup (shiny::loadSupport()), so this script's
+# top-level code would otherwise run every time the app boots, crashing it whenever
+# data/QC_for_SD_distribution/ is absent (it's gitignored - not in the deployed image).
+# Run once (or whenever data/QC_for_SD_distribution/ changes) from the repo root:
+#   Rscript scripts/calculate_variability_distribution.R
 #
 # Computes the historical Data Variability Indicator distribution from every QC file in
 # data/QC_for_SD_distribution/ and persists it to data/qc_variability_distribution.rds,
@@ -61,6 +64,9 @@ load_historical_file <- function(path) {
 }
 
 hist_files <- list.files("data/QC_for_SD_distribution", pattern = "[.]csv$", full.names = TRUE)
+if (length(hist_files) == 0) {
+  stop("No CSV files found in data/QC_for_SD_distribution/ - populate it before running this script.")
+}
 results <- lapply(hist_files, load_historical_file)
 
 variability_distribution <- bind_rows(lapply(results, `[[`, "rows"))

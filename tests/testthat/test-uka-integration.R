@@ -16,6 +16,15 @@ make_kinase_input_dir <- function(files) {
   dir
 }
 
+test_that("detect_csUKA reads the csUKA flag off column naming, not user input", {
+  expect_true(detect_csUKA(data.frame("Final score" = 1, check.names = FALSE)))
+  expect_false(detect_csUKA(data.frame("Median Final score" = 1, check.names = FALSE)))
+  expect_warning(
+    expect_false(detect_csUKA(data.frame("Unrelated column" = 1, check.names = FALSE))),
+    "Could not detect csUKA"
+  )
+})
+
 test_that("read_kinase_dir splits a real all-vs-all UKA file by comparison", {
   dir <- make_kinase_input_dir(c(
     "UKA_PTK_01_csUKA-180307Breast.csv" = test_input_path("UKA_PTK_01_csUKA-180307Breast.csv")
@@ -26,7 +35,10 @@ test_that("read_kinase_dir splits a real all-vs-all UKA file by comparison", {
     unlink(dir, recursive = TRUE)
   }, add = TRUE)
 
-  kinase_files <- read_kinase_dir(folder = "03_Kinase Analysis/", csUKA = TRUE)
+  kinase_files <- read_kinase_dir(folder = "03_Kinase Analysis/")
+
+  # Column naming ("Final score", not "Median Final score") auto-detects csUKA = TRUE.
+  expect_true(attr(kinase_files, "csUKA"))
 
   # 5 distinct Sgroup_contrast values in the fixture -> 5 split files.
   expect_equal(nrow(kinase_files), 5)
@@ -59,7 +71,7 @@ test_that("read_kinase_dir numbers PTK and STK files with one shared counter, no
     unlink(dir, recursive = TRUE)
   }, add = TRUE)
 
-  kinase_files <- read_kinase_dir(folder = "03_Kinase Analysis/", csUKA = TRUE)
+  kinase_files <- read_kinase_dir(folder = "03_Kinase Analysis/")
 
   expect_equal(nrow(kinase_files), 10)
   expect_equal(kinase_files$Order, 1:10)
@@ -77,6 +89,6 @@ test_that("read_kinase_dir returns an empty data frame (with a warning) when no 
   dir <- make_kinase_input_dir(character(0))
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
 
-  expect_warning(result <- read_kinase_dir(folder = file.path(dir, "03_Kinase Analysis/"), csUKA = TRUE), "No kinase files")
+  expect_warning(result <- read_kinase_dir(folder = file.path(dir, "03_Kinase Analysis/")), "No kinase files")
   expect_equal(nrow(result), 0)
 })

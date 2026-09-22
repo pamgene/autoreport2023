@@ -27,14 +27,11 @@ ui <- fluidPage(
                 ),
                 textAreaInput("aim", "Project Aim", rows = 2),
                 textAreaInput("comparisons", "Experiment Comparisons", rows = 2),
-                radioButtons("csUKA", "Use csUKA Analysis", choices = c("Yes" = "TRUE", "No" = "FALSE"), selected = "TRUE"),
                 numericInput("fscore_thr", "Final Score threshold", 1.3, 0, 10, step = 0.1),
                 numericInput("spec_thr", "Specificity Score threshold", 0.7, 0, 10, step = 0.1),
                 helpText("Score thresholds affect: main report top kinase table, coral tree dotsize, text."),
                 numericInput("psite_p_thr", "Phosphosite significance p-value threshold", 0.05, min = 0, max = 1, step = 0.001),
                 helpText("Affects: main report phosphosite analysis table, Supplement peptide volcano/heatmap."),
-                radioButtons("signal_heatmap", "Include Overall Signal Heatmap Text", choices = c("Yes" = "yes", "No" = "no")),
-                checkboxGroupInput("heatmap", "Significant Peptide Heatmap", choices = c("Yes" = "heatmap")),
                 checkboxGroupInput("kinase_analysis", "Kinase Analysis",
                                    choices = c("Coral Tree" = "tree")),
                 helpText("The below outputs are deprecated and should be only used when necessary - not as default!"),
@@ -85,6 +82,16 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
+  # csUKA is a property of the uploaded UKA file (which column-naming convention it
+  # uses), not a user preference - detect_csUKA() sets this when kinase files are
+  # processed, and save_params() persists it for the Rmds instead of a UI toggle.
+  detected_csUKA <- reactiveVal(FALSE)
+  # Significant Peptide Heatmap creation likewise follows from whether phosphosite
+  # analysis files (Limma/MTvC/TT) were uploaded, not a separate user toggle.
+  has_phosphosite_files <- reactiveVal(FALSE)
+  # ...and the Overall Signal Heatmap text follows from whether QC files were uploaded.
+  has_qc_files <- reactiveVal(FALSE)
+
   make_data_folders <- function() {
     folders <- c("01_Basic Processing", "02_Phosphosite Analysis", "03_Kinase Analysis", "01_REPORTS", "02_DATA", "03_FIGURES", "unzipped", "output")
     for (folder in folders) {
@@ -112,10 +119,8 @@ server <- function(input, output, session) {
     updateTextAreaInput(session, "comparisons", value = params_list$comparisons)
     updateCheckboxGroupInput(session, "normalizations", selected = params_list$normalizations)
     updateRadioButtons(session, 'stk_qc_method', selected = params_list$`stk_qc_method`)
-    updateCheckboxGroupInput(session, "heatmap", selected = ifelse(is.null(params_list$`phosphosite_heatmap`), character(0), "heatmap"))
     updateCheckboxGroupInput(session, "kinase_analysis", selected = params_list$`kinase_analysis`)
     updateCheckboxGroupInput(session, "kinase_analysis_old", selected = params_list$`kinase_analysis_old`)
-    updateRadioButtons(session, 'csUKA', selected = ifelse(is.null(params_list$`csUKA`), "FALSE", as.character(params_list$`csUKA`)))
     updateRadioButtons(session, 'coral_ks_thrs', selected = params_list$`coral_ks_thrs`)
     updateNumericInput(session, "fscore_thr", selected = params_list$`fscore_thr`)
     updateNumericInput(session, "spec_thr", selected = params_list$`spec_thr`)
@@ -139,11 +144,11 @@ server <- function(input, output, session) {
             "comparisons" = input$comparisons,
             "normalizations" = input$normalizations,
             "stk_qc_method" = input$`stk_qc_method`,
-            "signal_heatmap" = input$`signal_heatmap`,
-            "phosphosite_heatmap" = input$heatmap,
+            "signal_heatmap" = if (has_qc_files()) "yes" else "no",
+            "phosphosite_heatmap" = if (has_phosphosite_files()) "heatmap" else character(0),
             "kinase_analysis" = input$`kinase_analysis`,
             "kinase_analysis_old" = input$`kinase_analysis_old`,
-            "csUKA" = as.logical(input$csUKA),
+            "csUKA" = detected_csUKA(),
             "fscore_thr" = input$`fscore_thr`,
             "spec_thr" = input$`spec_thr`,
             "psite_p_thr" = psite_p_thr,
@@ -208,7 +213,7 @@ server <- function(input, output, session) {
       updateRadioButtons(session, "datatype", selected = "bionav")
     }
 
-    if (grepl(".zip$", input$reportFiles$name)) {
+    if (length(input$reportFiles$name) == 1 && grepl(".zip$", input$reportFiles$name)) {
       files <- unzip(input$reportFiles$datapath, exdir = "unzipped")
       filenames <- basename(files)
       file_df <- data.frame(name = filenames, datapath = files)
@@ -218,16 +223,23 @@ server <- function(input, output, session) {
     }
 
     output$download <- renderUI({ NULL })
-    output$`qc_table` <- renderTable(read_qc_dir())
-    output$`phosphosite_table` <- renderTable(read_phosphosite_dir(datatype = input$datatype))
-    
+    qc_table <- read_qc_dir()
+    has_qc_files(nrow(qc_table) > 0)
+    output$`qc_table` <- renderTable(qc_table)
+    phosphosite_table <- read_phosphosite_dir(datatype = input$datatype)
+    has_phosphosite_files(nrow(phosphosite_table) > 0)
+    output$`phosphosite_table` <- renderTable(phosphosite_table)
+
     # Make kinase table and save it
     if (!dir.exists("temp")){
       dir.create("temp")
     }
     
-    kinase_table <- read_kinase_dir(csUKA = as.logical(input$csUKA))
-    
+    kinase_table <- read_kinase_dir()
+    if (!is.null(attr(kinase_table, "csUKA"))) {
+      detected_csUKA(attr(kinase_table, "csUKA"))
+    }
+
     if (nrow(kinase_table) > 0) {
       write_csv(kinase_table, file = "temp/kinase_files.csv")
       output$`kinase_table` <- renderTable(kinase_table)
