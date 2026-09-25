@@ -97,7 +97,7 @@ fault before you need to bisect the input set manually.
 `renv::snapshot()` and renv 0.14.0's lockfile writer crash on this file ("argument is of
 length zero") - reproduced by just reading and re-writing the unmodified lockfile, so
 the cause is not something a change introduced (the hand-written `EnhancedVolcano` comment
-block is not the cause; it's unused and can be deleted). To add a package, get its
+block, since removed, was not the cause). To add a package, get its
 version/hash from a real R 4.1.0 container (`docker run` the current image, install it,
 read the record via `renv:::renv_lockfile_create(..., "all")`), then insert the entry into
 `renv.lock` as text at its alphabetical position. Keep the file's CRLF line endings.
