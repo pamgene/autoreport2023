@@ -1,5 +1,16 @@
 require(tidyverse)
 require(flextable)
+# ComplexHeatmap/circlize/grid are used only via explicit `pkg::fn()` calls (see the QC
+# HEATMAP section below), never require()'d - circlize::fontsize() would otherwise mask
+# flextable::fontsize() (used throughout this file's flextable tables) regardless of
+# require() order here, since both 01_MainReport.Rmd and 02_ReportSupplement.Rmd already
+# library(flextable) themselves before sourcing this file.
+if (!requireNamespace("ComplexHeatmap", quietly = TRUE)) {
+  stop("Package 'ComplexHeatmap' is required (QC heatmap rendering) but not installed.")
+}
+if (!requireNamespace("circlize", quietly = TRUE)) {
+  stop("Package 'circlize' is required (QC heatmap rendering) but not installed.")
+}
 source("R/report_theme.R")
 
 #########################################################
@@ -637,6 +648,400 @@ render_variability_boxplot <- function(variability_table) {
       strip.text = element_text(size = 10, face = "bold"),
       axis.text.y = element_blank(), axis.ticks.y = element_blank()
     )
+}
+
+#########################################################
+##################### QC HEATMAP #########################
+#########################################################
+# Renders the "Visual assessment of overall signal" heatmap (Supplement section 2.2.2.4):
+# one per assay type, rainbow color scale, Supergroup/Test Condition shown as plain
+# text-block column annotations (not color-coded), sample axis (Barcode-Row, or a single
+# Sample/Biol_Rep column) shown as a concatenated text label. See
+# https://jokergoo.github.io/ComplexHeatmap-reference/book/heatmap-annotations.html
+# ("group_block_anno()") for the block-spanning-multiple-slices technique used below.
+
+rainbow_scale <- function(values) {
+  rng <- range(values, na.rm = TRUE)
+  breaks <- seq(rng[1], rng[2], length.out = 5)
+  circlize::colorRamp2(breaks, c("blue", "cyan", "green", "yellow", "red"))
+}
+
+# Draws a single rectangle + label spanning several column slices, on top of an
+# anno_empty() annotation track. Needed because anno_block() alone labels exactly one
+# slice at a time - ComplexHeatmap's own documented workaround for a block that should
+# span multiple slices. Must be called AFTER draw(ht), so the per-slice viewports exist.
+group_block_anno <- function(slice_ids, empty_anno, gp = grid::gpar(), label = NULL, label_gp = grid::gpar()) {
+  grid::seekViewport(paste0("annotation_", empty_anno, "_", min(slice_ids)))
+  loc1 <- grid::deviceLoc(x = grid::unit(0, "npc"), y = grid::unit(0, "npc"))
+  grid::seekViewport(paste0("annotation_", empty_anno, "_", max(slice_ids)))
+  loc2 <- grid::deviceLoc(x = grid::unit(1, "npc"), y = grid::unit(1, "npc"))
+
+  grid::seekViewport("global")
+  grid::grid.rect(loc1$x, loc1$y,
+    width = loc2$x - loc1$x, height = loc2$y - loc1$y,
+    just = c("left", "bottom"), gp = gp
+  )
+  if (!is.null(label)) {
+    grid::grid.text(label, x = (loc1$x + loc2$x) * 0.5, y = (loc1$y + loc2$y) * 0.5, gp = label_gp)
+  }
+}
+
+# Contiguous runs of identical values, in order - e.g. c("A","A","B","B","B") -> one run
+# "A" over slices 1:2, one run "B" over slices 3:5. Finds which consecutive column-slices
+# share the same outer-level condition value (e.g. Supergroup) so they can be merged into
+# a single group_block_anno() rectangle.
+contiguous_runs <- function(values) {
+  r <- rle(as.character(values))
+  ends <- cumsum(r$lengths)
+  starts <- ends - r$lengths + 1
+  list(values = r$values, starts = starts, ends = ends)
+}
+
+# Formats a sample-identifying column value for display/concatenation: numeric
+# whole-number values (e.g. Row = 3.0 read from CSV) print as "3", not "3.0".
+format_sample_component <- function(x) {
+  if (is.numeric(x)) {
+    ifelse(x == round(x), as.character(as.integer(round(x))), as.character(x))
+  } else {
+    as.character(x)
+  }
+}
+
+# df: a cleaned QC data frame (as returned by load_qc_file(..., "tercen")).
+# value_col: which normalization column to plot (from identify_value_columns()).
+# classification: classify_qc_columns() output for this df.
+# Draws the heatmap to the current graphics device. Throws on any data shape it can't
+# handle (see render_qc_heatmap_to_file() for the graceful-degradation wrapper that
+# callers should actually use).
+render_qc_heatmap <- function(df, value_col, classification, legend_title = value_col) {
+  sample_cols <- classification$sample_cols
+  condition_cols <- classification$condition_cols
+  peptide_col <- classification$peptide_col
+
+  required_cols <- c(peptide_col, sample_cols, condition_cols, value_col)
+  missing_cols <- setdiff(required_cols, colnames(df))
+  if (length(missing_cols) > 0) {
+    stop("render_qc_heatmap: missing expected column(s): ", paste(missing_cols, collapse = ", "))
+  }
+  if (length(condition_cols) == 0) {
+    stop("render_qc_heatmap: no condition columns identified.")
+  }
+  if (!is.numeric(df[[value_col]])) {
+    stop("render_qc_heatmap: value column '", value_col, "' is not numeric.")
+  }
+  if (nrow(df) == 0) {
+    stop("render_qc_heatmap: empty QC data.")
+  }
+  na_condition_cols <- condition_cols[sapply(condition_cols, function(cc) anyNA(df[[cc]]))]
+  if (length(na_condition_cols) > 0) {
+    stop("render_qc_heatmap: missing (NA) values in condition column(s): ", paste(na_condition_cols, collapse = ", "))
+  }
+  na_sample_cols <- sample_cols[sapply(sample_cols, function(cc) anyNA(df[[cc]]))]
+  if (length(na_sample_cols) > 0) {
+    stop("render_qc_heatmap: missing (NA) values in sample column(s): ", paste(na_sample_cols, collapse = ", "))
+  }
+
+  df <- df %>% filter(!is.na(.data[[value_col]]))
+  if (nrow(df) == 0) {
+    stop("render_qc_heatmap: no non-missing values in '", value_col, "'.")
+  }
+
+  sample_id_parts <- lapply(sample_cols, function(cn) format_sample_component(df[[cn]]))
+  df$.sample_id <- do.call(paste, c(sample_id_parts, list(sep = "-")))
+
+  # distinct() preserves first-occurrence row order (unlike group_by()+slice(), which
+  # re-sorts by group key) - needed so condition factor levels below follow the QC file's
+  # own row order (e.g. Supergroup appearance order) rather than alphabetically.
+  sample_meta <- df %>%
+    distinct(across(all_of(c(condition_cols, ".sample_id"))))
+
+  if (nrow(sample_meta) != n_distinct(df$.sample_id)) {
+    stop("render_qc_heatmap: a sample maps to more than one condition combination - not QC-heatmap-shaped data.")
+  }
+  if (nrow(sample_meta) < 2) {
+    stop("render_qc_heatmap: fewer than 2 distinct samples - not enough to plot.")
+  }
+  if (n_distinct(df[[peptide_col]]) < 2) {
+    stop("render_qc_heatmap: fewer than 2 distinct peptides - not enough to plot.")
+  }
+
+  for (cc in condition_cols) {
+    sample_meta[[cc]] <- factor(sample_meta[[cc]], levels = unique(sample_meta[[cc]]))
+  }
+  sample_meta <- sample_meta %>% arrange(across(all_of(condition_cols)), .sample_id)
+
+  split_key <- do.call(paste, c(lapply(condition_cols, function(cc) as.character(sample_meta[[cc]])), list(sep = " | ")))
+  sample_meta$.split <- factor(split_key, levels = unique(split_key))
+
+  mat <- df %>%
+    select(all_of(c(peptide_col, ".sample_id", value_col))) %>%
+    pivot_wider(names_from = ".sample_id", values_from = all_of(value_col), values_fn = mean) %>%
+    column_to_rownames(peptide_col) %>%
+    as.matrix()
+  mat <- mat[, sample_meta$.sample_id, drop = FALSE]
+  # Rows ordered by descending mean signal (not hierarchically clustered) - each row is a
+  # phosphosite, each column a PamChip array; sorting by row mean gives the smooth
+  # high-to-low gradient this heatmap is meant to show, without a dendrogram.
+  mat <- mat[order(-rowMeans(mat, na.rm = TRUE)), , drop = FALSE]
+
+  slice_lookup <- sample_meta %>%
+    distinct(.split, across(all_of(condition_cols))) %>%
+    arrange(match(.split, levels(sample_meta$.split)))
+
+  n_cond <- length(condition_cols)
+  outer_cols <- if (n_cond > 1) condition_cols[seq_len(n_cond - 1)] else character(0)
+  inner_col <- condition_cols[n_cond]
+
+  sample_label_text <- if (length(sample_cols) > 1) {
+    paste0("Sample (", paste(sample_cols, collapse = "-"), ")")
+  } else {
+    sample_cols
+  }
+
+  anno_args <- list()
+  empty_names <- character(0)
+  for (i in seq_along(outer_cols)) {
+    nm <- paste0("grp_empty_", i)
+    anno_args[[nm]] <- ComplexHeatmap::anno_empty(border = FALSE, height = grid::unit(6, "mm"))
+    empty_names <- c(empty_names, nm)
+  }
+  anno_args[["cond_block"]] <- ComplexHeatmap::anno_block(
+    gp = grid::gpar(fill = "grey92", col = "grey40"),
+    labels = as.character(slice_lookup[[inner_col]]),
+    labels_gp = grid::gpar(fontsize = 9, fontface = "bold")
+  )
+  # Sample identity as text only - no per-sample fill color: the concatenated
+  # Barcode-Row text alone is enough, color just adds noise (per product feedback).
+  anno_args[["sample_label"]] <- ComplexHeatmap::anno_text(sample_meta$.sample_id,
+    rot = 90, just = "right", location = grid::unit(1, "npc"),
+    gp = grid::gpar(fontsize = 6)
+  )
+
+  ha_top <- do.call(ComplexHeatmap::HeatmapAnnotation, c(anno_args, list(
+    annotation_label = setNames(
+      c(outer_cols, inner_col, sample_label_text),
+      c(empty_names, "cond_block", "sample_label")
+    ),
+    annotation_name_side = "left",
+    annotation_name_gp = grid::gpar(fontsize = 8)
+  )))
+
+  col_fun <- rainbow_scale(mat)
+  ht <- ComplexHeatmap::Heatmap(mat,
+    name = "value",
+    col = col_fun,
+    top_annotation = ha_top,
+    column_split = sample_meta$.split,
+    cluster_columns = FALSE,
+    cluster_column_slices = FALSE,
+    cluster_rows = FALSE,
+    show_row_names = FALSE,
+    show_column_names = FALSE,
+    column_title = NULL,
+    row_title = peptide_col,
+    column_gap = grid::unit(0, "mm"),
+    border = FALSE,
+    heatmap_legend_param = list(title = legend_title)
+  )
+
+  ComplexHeatmap::draw(ht, heatmap_legend_side = "right", annotation_legend_side = "right")
+
+  for (i in seq_along(outer_cols)) {
+    cc <- outer_cols[i]
+    runs <- contiguous_runs(slice_lookup[[cc]])
+    for (r in seq_along(runs$values)) {
+      group_block_anno(
+        runs$starts[r]:runs$ends[r], empty_names[i],
+        gp = grid::gpar(fill = "grey85", col = "grey40"),
+        label = runs$values[r], label_gp = grid::gpar(fontsize = 9, fontface = "bold")
+      )
+    }
+  }
+
+  invisible(ht)
+}
+
+# Renders one QC heatmap to a PNG file, with the device fully isolated: on any failure
+# (including partway through drawing) the device is still cleanly closed and any
+# partially-written file is deleted, so a QC file with an unexpected shape can never end
+# up contributing a broken/partial image to the report - it's just omitted. Returns TRUE
+# on success, FALSE otherwise (never throws).
+render_qc_heatmap_to_file <- function(df, value_col, classification, legend_title, out_path,
+                                       width = 1600, height = 1000, res = 130) {
+  dev_opened <- FALSE
+  ok <- tryCatch(
+    {
+      grDevices::png(out_path, width = width, height = height, res = res)
+      dev_opened <- TRUE
+      render_qc_heatmap(df, value_col, classification, legend_title)
+      TRUE
+    },
+    error = function(e) {
+      message("QC heatmap skipped (", legend_title, "): ", conditionMessage(e))
+      FALSE
+    }
+  )
+  if (dev_opened) {
+    grDevices::dev.off()
+  }
+  if (!isTRUE(ok)) {
+    if (file.exists(out_path)) {
+      file.remove(out_path)
+    }
+    return(FALSE)
+  }
+  TRUE
+}
+
+# Picks which QC data to plot for one assay type's heatmap: TR-preferred, BR-fallback
+# (same convention as parse_qc()'s Table 2 row), using whichever normalization is
+# "latest" (per normalization_order) among the chosen replicate type's file(s) for this
+# assay - same "latest wins" convention as build_qc_result_text()/Table 2/Table 4. A file
+# that fails to load or whose columns can't be classified is skipped (not fatal to the
+# other files for this assay type - real-world QC uploads can have one malformed file
+# alongside otherwise-good ones). Never throws - returns NULL (heatmap simply omitted for
+# this assay type) when nothing usable is found.
+select_qc_heatmap_source <- function(qc_files, datatype, assay_type) {
+  if (datatype != "tercen" || is.null(qc_files) || nrow(qc_files) == 0) {
+    return(NULL)
+  }
+  tryCatch(
+    {
+      assay_files <- qc_files %>% filter(Assay_Type == assay_type)
+      if (nrow(assay_files) == 0) {
+        return(NULL)
+      }
+      has_hint_col <- "Normalization_Hint" %in% colnames(assay_files)
+
+      gather_for <- function(files_df) {
+        out <- list()
+        for (i in seq_len(nrow(files_df))) {
+          f <- files_df$qc_file[i]
+          hint <- if (has_hint_col) files_df$Normalization_Hint[i] else NA_character_
+          parsed <- tryCatch(
+            {
+              raw <- load_qc_file(f, datatype)
+              norms <- identify_value_columns(raw, hint)
+              value_cols <- unname(unlist(norms))
+              classification <- if (length(value_cols) > 0) classify_qc_columns(raw, value_cols) else NULL
+              list(raw = raw, norms = norms, classification = classification)
+            },
+            error = function(e) {
+              message("QC heatmap: skipping unreadable/unexpected QC file '", basename(f), "': ", conditionMessage(e))
+              NULL
+            }
+          )
+          if (is.null(parsed) || is.null(parsed$classification) || length(parsed$norms) == 0) {
+            next
+          }
+          for (label in names(parsed$norms)) {
+            if (!label %in% names(out)) {
+              out[[label]] <- list(df = parsed$raw, column = parsed$norms[[label]], classification = parsed$classification)
+            }
+          }
+        }
+        out
+      }
+
+      tr_files <- assay_files %>% filter(Replicate_Type == "TR")
+      br_files <- assay_files %>% filter(Replicate_Type == "BR")
+
+      # TR-preferred; falls back to BR not just when no TR file is listed at all, but also
+      # when every listed TR file turned out unreadable/unexpected (gather_for() skipped
+      # them all) - a study can still have perfectly good BR data in that case.
+      replicate_type_used <- "TR"
+      normalizations <- gather_for(tr_files)
+      if (length(normalizations) == 0 && nrow(br_files) > 0) {
+        replicate_type_used <- "BR"
+        normalizations <- gather_for(br_files)
+      }
+      if (length(normalizations) == 0) {
+        return(NULL)
+      }
+
+      present <- intersect(normalization_order, names(normalizations))
+      if (length(present) == 0) {
+        return(NULL)
+      }
+      label <- present[length(present)]
+      entry <- normalizations[[label]]
+
+      list(
+        df = entry$df, value_col = entry$column, classification = entry$classification,
+        label = label, replicate_type = replicate_type_used
+      )
+    },
+    error = function(e) {
+      message("QC heatmap source unavailable for assay ", assay_type, ": ", conditionMessage(e))
+      NULL
+    }
+  )
+}
+
+# Full descriptive phrase for the "The heatmap shows ... values" caption sentence, styled
+# to match the Supplement's existing prose. Derived from the SAME label actually used to
+# render the image (see render_qc_heatmap_for_assay()), so the caption can never drift out
+# of sync with what's plotted.
+qc_heatmap_caption_phrase <- function(label) {
+  switch(label,
+    "VSN + ComBat" = "VSN-ComBat-normalized",
+    "VSN" = "VSN-normalized",
+    "Log + ComBat" = "Log2-ComBat-normalized",
+    "Log2-transformed" # default - covers "Log" and any unrecognized label
+  )
+}
+
+# What one column of the heatmap represents - a TR file's columns are individual PamChip
+# arrays; a BR file's columns are biological replicates (already averaged up from arrays -
+# see ref/HowToUse.md), so the caption sentence should say which.
+qc_heatmap_column_unit <- function(replicate_type) {
+  if (replicate_type == "BR") "biological replicate" else "PamChip array"
+}
+
+# Renders (or skips) the QC heatmap for one assay type: selects the data
+# (select_qc_heatmap_source()), sizes the image to the number of samples, and writes it to
+# 03_FIGURES/QC_Heatmap_<assay>_<TR|BR>.png. Returns list(path=, label=, legend_title=,
+# caption=) on success, or NULL if this assay type has no QC data that supports a heatmap -
+# callers should simply skip printing anything for this assay type in that case.
+render_qc_heatmap_for_assay <- function(qc_files, datatype, assay_type, out_dir = "03_FIGURES") {
+  source_info <- select_qc_heatmap_source(qc_files, datatype, assay_type)
+  if (is.null(source_info)) {
+    return(NULL)
+  }
+
+  legend_title <- if (source_info$label %in% names(variability_norm_labels)) {
+    variability_norm_labels[[source_info$label]]
+  } else {
+    source_info$label
+  }
+  caption <- sprintf(
+    "The heatmap shows %s values of the integrated signal. Each row is a phosphosite and each column is a %s. Rows are sorted by row mean and only include phosphosites which passed the QC.",
+    qc_heatmap_caption_phrase(source_info$label), qc_heatmap_column_unit(source_info$replicate_type)
+  )
+
+  n_samples <- tryCatch(
+    nrow(distinct(source_info$df[, source_info$classification$sample_cols, drop = FALSE])),
+    error = function(e) 12
+  )
+  width <- max(1200, min(3600, 90 * n_samples))
+  # Wide, not square: at the 6.3in display width, a PTK and an STK heatmap (~3.5in tall
+  # each) then fit on one page.
+  height <- round(width / 1.8)
+
+  if (!dir.exists(out_dir)) {
+    dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+  out_path <- file.path(out_dir, paste0("QC_Heatmap_", assay_type, "_", source_info$replicate_type, ".png"))
+
+  ok <- render_qc_heatmap_to_file(
+    source_info$df, source_info$value_col, source_info$classification,
+    legend_title = legend_title, out_path = out_path, width = width, height = height, res = 130
+  )
+  if (!ok) {
+    return(NULL)
+  }
+
+  list(path = out_path, label = source_info$label, legend_title = legend_title, caption = caption)
 }
 
 #########################################################

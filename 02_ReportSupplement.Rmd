@@ -92,11 +92,9 @@ Low exposure times are useful to capture high intensity signals, and likewise hi
 ```{r qc setup}
 qc_files <- read_qc_dir()
 if (nrow(qc_files) > 0) {
-  qc_assay_types <- qc_files %>% pull(Assay_Type)
   qc_parsed <- parse_qc(qc_files, params$datatype)
   show_variability_section <- should_show_variability_section(qc_files)
 } else {
-  qc_assay_types <- ""
   show_variability_section <- FALSE
 }
 
@@ -230,22 +228,31 @@ cat(paste0("The basic processing steps as described above result in ", norm_desc
 ```
 
 ```{r, results='asis'}
+# One heatmap per assay type present in the QC files - always attempted whenever QC files
+# were uploaded (this whole section is only reached when params$signal_heatmap == "yes",
+# which app.R sets automatically iff QC files exist). Each heatmap uses whichever
+# normalization is "latest" for that assay type's own QC file(s) (see
+# render_qc_heatmap_for_assay()/select_qc_heatmap_source() - same "latest wins"
+# convention as Table 2's QC flag and the Data Variability Indicator), and its caption is
+# derived from that SAME selection, so the caption can never describe a different
+# normalization than what's actually plotted. A QC file with an unexpected shape (e.g.
+# missing/renamed columns) is skipped rather than breaking the report - that assay type's
+# heatmap (or, if none of its files are usable, the whole heatmap) is simply omitted.
 template <- "**Heatmap Overview - %s**"
 
-for (assay_type in qc_assay_types) {
+for (assay_type in unique(qc_files$Assay_Type)) {
+  heatmap_result <- render_qc_heatmap_for_assay(qc_files, params$datatype, assay_type)
+  if (is.null(heatmap_result)) {
+    next
+  }
+
   cat(sprintf(template, assay_type))
   cat("  \n")
   cat("  \n")
-  
-  if ("vsn" %in% effective_normalizations & !"combat" %in% effective_normalizations){
-    cat("##### The heatmap shows VSN-normalized values of the integrated signal. Each row is a phosphosite and each column is a PamChip array. Rows are sorted by row mean and only include phosphosites which passed the QC.")
-  } else if ("vsn" %in% effective_normalizations & "combat" %in% effective_normalizations){
-    cat("##### The heatmap shows VSN-ComBat-normalized values of the integrated signal. Each row is a phosphosite and each column is a PamChip array. Rows are sorted by row mean and only include phosphosites which passed the QC.")
-  } else if (!"vsn" %in% effective_normalizations & "combat" %in% effective_normalizations){
-    cat("##### The heatmap shows Log2-ComBat-normalized values of the integrated signal. Each row is a phosphosite and each column is a PamChip array. Rows are sorted by row mean and only include phosphosites which passed the QC.")
-  } else if (!"vsn" %in% effective_normalizations & !"combat" %in% effective_normalizations){
-    cat("##### The heatmap shows Log2-transformed values of the integrated signal. Each row is a phosphosite and each column is a PamChip array. Rows are sorted by row mean and only include phosphosites which passed the QC.")
-  }
+  cat(sprintf("![](%s){width=6.3in}", heatmap_result$path))
+  cat("  \n")
+  cat("  \n")
+  cat(paste0("##### ", heatmap_result$caption))
   cat("  \n")
 }
 
