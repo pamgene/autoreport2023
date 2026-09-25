@@ -56,3 +56,33 @@ computed per assay type.
 See `ref/HowToUse.md` for the exact QC filename/column conventions, and
 `C:\Users\dschuller\.claude\plans\new-feature-the-qc-swirling-thompson.md` for how TR vs BR
 drives QC flagging and the Data Variability Indicator.
+
+## QC set
+
+The QC files sharing one number token in their filename (`QC_<PTK|STK>_<number>_<TR|BR>...`,
+e.g. all `QC_*_01_*` files vs all `QC_*_02_*` files). Numbered exports exist only when a
+study was exported under more than one normalization approach (e.g. 01 = Log, 02 = VSN - see
+`ref/HowToUse.md`), so one QC set = one normalization approach, covering PTK and STK and TR
+and BR alike. PTK vs STK never makes two QC sets on its own. Unnumbered files (e.g.
+`QC_PTK.csv`) and BioNavigator QC files form a single QC set.
+
+## Executive Summary deck
+
+The editable PowerPoint output (`01_REPORTS/03_ExecutiveSummary_PamDx_<yymmdd>.pptx`), built
+with `officer` from the PamDx slide template next to the Main Report and Supplement. Holds
+only summary content (QC tables, Data Variability Indicator, phosphosite table); dot plots,
+Coral trees and conclusions are pasted/written by hand into space the template leaves empty.
+
+## Marker shape
+
+A shape in the slide template, named in PowerPoint's Selection Pane and showing `<...>` text,
+that the code replaces with generated content (table, image, date). Its box defines the
+content's position and maximum size - resizing the marker in the template changes the output
+without code changes. Shapes that aren't marker shapes (static labels, "Replace this text.")
+are never touched.
+
+## Continuation slide
+
+An extra "Results (continued)" slide holding the rows of a phosphosite table that don't fit
+the `table_psite_analysis` marker shape; contains only the title and the table chunk (header
+rows repeated).
